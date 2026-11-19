@@ -134,3 +134,29 @@ export async function setBusinessModuleEnabled(formData: FormData) {
   if (error) appError("No se pudo actualizar el módulo. Intentá nuevamente.");
   redirect("/app?modules=updated");
 }
+
+
+export async function deleteBusiness(formData: FormData) {
+  const businessId = String(formData.get("businessId") ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId)) {
+    appError("El espacio de trabajo seleccionado no es válido.");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // The database RPC rechecks that this user is the workspace owner.
+  const { error } = await supabase.rpc("delete_business", { p_business_id: businessId });
+  if (error) {
+    if (error.code === "42501") appError("Solo el propietario puede eliminar este espacio de trabajo.");
+    appError("No se pudo eliminar el espacio. Actualizá la página e intentá nuevamente.");
+  }
+
+  const cookieStore = await cookies();
+  if (cookieStore.get(ACTIVE_BUSINESS_COOKIE)?.value === businessId) {
+    cookieStore.delete(ACTIVE_BUSINESS_COOKIE);
+  }
+
+  redirect("/app?deleted=1");
+}
