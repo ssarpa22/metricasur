@@ -12,3 +12,6 @@ pnpm-debug.log*
 !.env.example
 .vercel
 *.tsbuildinfo
+# Supabase local development
+supabase/.branches/
+supabase/.temp/
