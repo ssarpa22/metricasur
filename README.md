@@ -1,30 +1,38 @@
 # MétricaSur
 
-MétricaSur is an adaptive business-management platform for entrepreneurs, independent professionals, and small businesses. It combines a universal operational core, industry-specific modules, and a hybrid AI system: one central assistant coordinating bounded domain specialists.
+Plataforma de gestión adaptable para emprendedores y pequeñas empresas.
 
-## Product direction
+## Requisitos
+- Node.js 20.9 o superior (recomendado: Node.js 22 LTS).
+- npm 10 o superior.
+- Git.
 
-- Hybrid onboarding that discovers a business and recommends a configurable workspace.
-- A modular monolith with a universal core and versioned industry modules.
-- Hybrid AI orchestration with explicit permissions, approvals, and auditability.
-- Progressive complexity: useful for a solo freelancer and extensible for a growing business.
+## Desarrollo local
+1. Cloná el repositorio.
+2. Instalá dependencias: `npm install`.
+3. Copiá las variables de ejemplo: `Copy-Item .env.example .env.local` (PowerShell).
+4. Iniciá el servidor: `npm run dev`.
+5. Abrí [http://localhost:3000](http://localhost:3000).
 
-## Architecture documentation
+La aplicación puede ejecutarse sin credenciales de Supabase. Las integraciones se habilitarán en etapas posteriores.
 
-- [Product vision](docs/PRODUCT_VISION.md)
-- [Technical architecture](docs/ARCHITECTURE.md)
-- [Module system](docs/MODULE_SYSTEM.md)
-- [AI autonomy and safety](docs/AI_AUTONOMY.md)
-- [Development roadmap](docs/ROADMAP.md)
+## Comandos
+| Comando | Descripción |
+| --- | --- |
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm run start` | Servidor de producción |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | Verificación TypeScript |
+| `npm test` | Tests unitarios |
+| `npm run format:check` | Verificación Prettier |
+| `npm run check` | Lint, tipos, tests y formato |
 
-## Project status
+No agregues secretos reales al repositorio. Las claves privadas deben permanecer exclusivamente en el servidor.
 
-Architecture and product foundation are being defined. The application implementation has not started yet.
-
-## Development principles
-
-- Core workflows must work without AI.
-- Every business-owned record is tenant-scoped.
-- AI actions go through validated, permission-checked application tools.
-- Industry rules must be validated and must not be invented by AI.
-- New capabilities should be added through modules rather than business-type conditionals.
+## Documentación
+- [Visión del producto](docs/PRODUCT_VISION.md)
+- [Arquitectura](docs/ARCHITECTURE.md)
+- [Sistema de módulos](docs/MODULE_SYSTEM.md)
+- [Autonomía de IA](docs/AI_AUTONOMY.md)
+- [Roadmap](docs/ROADMAP.md)
