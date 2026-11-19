@@ -4,7 +4,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select extensions.plan(15);
+select extensions.plan(17);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -20,7 +20,9 @@ values
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
 select set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
-select set_config('test.created_business_id', public.create_business('Workspace A')::text, true);
+select set_config('test.created_business_id', public.create_business('Workspace A', 'butcher')::text, true);
+select extensions.is((select industry from public.businesses where id = current_setting('test.created_business_id')::uuid), 'butcher', 'workspace stores its selected industry');
+select extensions.throws_ok($$ select public.create_business('Invalid industry workspace', 'run_anything') $$, '22023', null, 'RPC rejects an industry outside the allowlist');
 reset role;
 
 -- Trusted fixture setup: a second tenant, plus a member and admin in A.
@@ -40,7 +42,7 @@ select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select extensions.is((select count(*)::integer from public.businesses), 0, 'anonymous users cannot read businesses');
 select extensions.is((select count(*)::integer from public.business_memberships), 0, 'anonymous users cannot read memberships');
-select extensions.throws_ok($$ select public.create_business('Anonymous workspace') $$, '42501', null, 'anonymous users cannot create a business');
+select extensions.throws_ok($$ select public.create_business('Anonymous workspace', 'other') $$, '42501', null, 'anonymous users cannot create a business');
 reset role;
 
 -- Owner A is isolated from tenant B and can inspect its own workspace.
