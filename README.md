@@ -36,3 +36,4 @@ No agregues secretos reales al repositorio. Las claves privadas deben permanecer
 - [Sistema de módulos](docs/MODULE_SYSTEM.md)
 - [Autonomía de IA](docs/AI_AUTONOMY.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Base de datos y multi-tenancy](docs/DATABASE.md)
