@@ -22,7 +22,7 @@ export default function Home() {
           <a className="hover:text-[#16785a]" href="#como-funciona">Cómo funciona</a>
           <a className="hover:text-[#16785a]" href="#vision">Nuestra idea</a>
         </nav>
-        <a href="mailto:hola@metricasur.com" className="inline-flex items-center gap-2 rounded-full border border-[#dce5e0] bg-white px-4 py-2.5 text-sm font-semibold text-[#24513f] hover:border-[#16785a]">Hablemos <ArrowRight size={16}/></a>
+        <a href="/login" className="inline-flex items-center gap-2 rounded-full border border-[#dce5e0] bg-white px-4 py-2.5 text-sm font-semibold text-[#24513f] hover:border-[#16785a]">Ingresar <ArrowRight size={16}/></a>
       </header>
 
       <section className="mx-auto grid max-w-7xl items-center gap-14 px-6 pb-24 pt-14 lg:grid-cols-[1.05fr_.95fr] lg:px-10 lg:pb-32 lg:pt-20">
