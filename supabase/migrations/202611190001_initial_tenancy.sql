@@ -137,6 +137,7 @@ end;
 $$;
 
 revoke all on function public.create_business(text) from public;
+revoke all on function public.create_business(text) from anon;
 grant execute on function public.create_business(text) to authenticated;
 
 comment on table public.businesses is
