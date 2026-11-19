@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { BarChart3, Building2, ChevronDown, LogOut, Plus, UserRound } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { industries, industrySchema } from "@/lib/industries";
 import { createBusiness, signOut, switchBusiness, updateProfile } from "./actions";
 
 type AppPageProps = {
@@ -40,13 +41,15 @@ export default async function AppPage({ searchParams }: AppPageProps) {
 
   const businessIds = memberships?.map((membership) => membership.business_id) ?? [];
   const { data: businesses } = businessIds.length
-    ? await supabase.from("businesses").select("id, name, created_at").in("id", businessIds).order("created_at")
+    ? await supabase.from("businesses").select("id, name, industry, created_at").in("id", businessIds).order("created_at")
     : { data: [] };
 
   const cookieStore = await cookies();
   const preferredBusinessId = cookieStore.get("metricasur_active_business")?.value;
   const activeBusiness = businesses?.find((business) => business.id === preferredBusinessId) ?? businesses?.[0] ?? null;
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role;
+  const activeIndustry = industrySchema.safeParse(activeBusiness?.industry);
+  const industry = activeIndustry.success ? industries[activeIndustry.data] : industries.other;
   const fullName = typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "";
   const firstName = fullName.trim().split(/\s+/)[0] || user.email?.split("@")[0] || "ahí";
 
@@ -68,7 +71,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
         <div className="mb-9">
           <p className="text-xs font-bold tracking-[0.16em] text-[#16785a]">TU ESPACIO DE TRABAJO</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#17211f] sm:text-4xl">Buen día, {firstName} 👋</h1>
-          <p className="mt-3 text-sm leading-6 text-[#687570]">Desde acá vas a poder organizar tus negocios y elegir en cuál trabajar.</p>
+          <p className="mt-3 text-sm leading-6 text-[#687570]">Un espacio de trabajo que se adapta a la actividad de tu negocio.</p>
         </div>
 
         {params.error && <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
@@ -90,14 +93,32 @@ export default async function AppPage({ searchParams }: AppPageProps) {
                 <div className="mt-6 rounded-2xl border border-[#cfe6d8] bg-[#f4f9f6] p-5">
                   <p className="text-[11px] font-bold tracking-[0.12em] text-[#6d8979]">ESPACIO ACTIVO</p>
                   <h2 className="mt-2 text-xl font-semibold text-[#203b2e]">{activeBusiness.name}</h2>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-[#6e8176]"><span className="rounded-full bg-white px-2.5 py-1 capitalize">{activeRole ?? "miembro"}</span><span>Este es el contexto seleccionado para trabajar.</span></div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#6e8176]">
+                    <span className="rounded-full bg-white px-2.5 py-1 capitalize">{activeRole ?? "miembro"}</span>
+                    <span className="rounded-full bg-white px-2.5 py-1">{industry.label}</span>
+                    <span>Contexto seleccionado para trabajar.</span>
+                  </div>
                 </div>
+                <section className="mt-5 rounded-2xl border border-[#e4eae6] bg-white p-5">
+                  <p className="text-[11px] font-bold tracking-[0.12em] text-[#16785a]">PENSADO PARA TU RUBRO</p>
+                  <h3 className="mt-2 text-lg font-semibold text-[#203b2e]">{industry.focus}</h3>
+                  <p className="mt-1 text-sm text-[#718078]">{industry.description}</p>
+                  <ul className="mt-4 space-y-3">
+                    {industry.priorities.map((priority) => (
+                      <li key={priority} className="flex items-start gap-2 text-sm text-[#53635a]">
+                        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[#16785a]" />
+                        {priority}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-4 border-t border-[#edf0ee] pt-3 text-xs leading-5 text-[#84918b]">Estas prioridades orientan la configuración inicial. Los módulos operativos específicos se irán habilitando para cada actividad.</p>
+                </section>
                 {(businesses?.length ?? 0) > 1 && (
                   <form action={switchBusiness} className="mt-5">
                     <label className="block text-sm font-medium text-[#34443d]">Cambiar de espacio</label>
                     <div className="relative mt-2">
                       <select name="businessId" defaultValue={activeBusiness.id} className="w-full appearance-none rounded-xl border border-[#dce5e0] bg-white px-4 py-3 pr-10 text-sm text-[#34443d] outline-none focus:border-[#16785a]">
-                        {businesses?.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+                        {businesses?.map((business) => <option key={business.id} value={business.id}>{business.name} · {industries[industrySchema.safeParse(business.industry).success ? business.industry as keyof typeof industries : "other"].label}</option>)}
                       </select>
                       <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#84918b]"/>
                     </div>
@@ -115,9 +136,25 @@ export default async function AppPage({ searchParams }: AppPageProps) {
 
             <div className="mt-7 border-t border-[#edf0ee] pt-6">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-[#34443d]"><Plus size={16} className="text-[#16785a]"/> Crear otro negocio</h3>
-              <form action={createBusiness} className="mt-3 flex flex-col gap-3 sm:flex-row">
-                <input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi estudio, Local del centro..." className="min-w-0 flex-1 rounded-xl border border-[#dce5e0] px-4 py-3 text-sm outline-none focus:border-[#16785a]"/>
-                <button type="submit" className="rounded-xl bg-[#16785a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#105c45]">Crear espacio</button>
+              <form action={createBusiness} className="mt-3 flex flex-col gap-3">
+                <label className="text-sm font-medium text-[#34443d]">
+                  Nombre del negocio
+                  <input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi estudio, Local del centro..." className="mt-2 w-full rounded-xl border border-[#dce5e0] px-4 py-3 text-sm outline-none focus:border-[#16785a]"/>
+                </label>
+                <label className="text-sm font-medium text-[#34443d]">
+                  Rubro o actividad
+                  <div className="relative mt-2">
+                    <select name="industry" required defaultValue="" className="w-full appearance-none rounded-xl border border-[#dce5e0] bg-white px-4 py-3 pr-10 text-sm text-[#34443d] outline-none focus:border-[#16785a]">
+                      <option value="" disabled>Seleccioná el rubro de tu negocio</option>
+                      {Object.entries(industries).map(([value, option]) => (
+                        <option key={value} value={value}>{option.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[#84918b]"/>
+                  </div>
+                  <span className="mt-1 block text-xs font-normal text-[#84918b]">Esto adapta las herramientas y prioridades de tu espacio.</span>
+                </label>
+                <button type="submit" className="self-start rounded-xl bg-[#16785a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#105c45]">Crear espacio</button>
               </form>
             </div>
           </section>
@@ -136,7 +173,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
             </form>
           </section>
         </div>
-        <p className="mt-8 text-center text-xs text-[#9aa59f]">MétricaSur está en construcción. Próximamente vas a encontrar acá las herramientas de gestión de tu negocio.</p>
+        <p className="mt-8 text-center text-xs text-[#9aa59f]">MétricaSur está en construcción. Tu rubro define las prioridades y será la base de los módulos especializados.</p>
       </div>
     </main>
   );

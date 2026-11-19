@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { industrySchema } from "@/lib/industries";
 
 const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
 
@@ -12,14 +13,20 @@ function appError(message: string): never {
 
 export async function createBusiness(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
+  const industry = industrySchema.safeParse(formData.get("industry"));
+
   if (name.length < 2 || name.length > 120) appError("El nombre debe tener entre 2 y 120 caracteres.");
+  if (!industry.success) appError("Seleccioná un rubro válido de la lista.");
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: businessId, error } = await supabase.rpc("create_business", { p_name: name });
-  if (error || !businessId) appError("No se pudo crear el espacio. Revisá el nombre e intentá nuevamente.");
+  const { data: businessId, error } = await supabase.rpc("create_business", {
+    p_name: name,
+    p_industry: industry.data,
+  });
+  if (error || !businessId) appError("No se pudo crear el espacio. Revisá los datos e intentá nuevamente.");
 
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_BUSINESS_COOKIE, businessId, {
