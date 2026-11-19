@@ -1,0 +1,86 @@
+"use server";
+
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
+
+function appError(message: string): never {
+  redirect(`/app?error=${encodeURIComponent(message)}`);
+}
+
+export async function createBusiness(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 2 || name.length > 120) appError("El nombre debe tener entre 2 y 120 caracteres.");
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: businessId, error } = await supabase.rpc("create_business", { p_name: name });
+  if (error || !businessId) appError("No se pudo crear el espacio. Revisá el nombre e intentá nuevamente.");
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_BUSINESS_COOKIE, businessId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  redirect("/app?created=1");
+}
+
+export async function switchBusiness(formData: FormData) {
+  const businessId = String(formData.get("businessId") ?? "");
+  if (!businessId) appError("Seleccioná un espacio de trabajo.");
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // The cookie is only a preference. Membership is always verified server-side.
+  const { data: membership, error } = await supabase
+    .from("business_memberships")
+    .select("business_id")
+    .eq("business_id", businessId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error || !membership) appError("No tenés acceso a ese espacio de trabajo.");
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_BUSINESS_COOKIE, membership.business_id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
+  redirect("/app");
+}
+
+export async function updateProfile(formData: FormData) {
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  if (fullName.length < 2 || fullName.length > 80) appError("El nombre debe tener entre 2 y 80 caracteres.");
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.auth.updateUser({ data: { full_name: fullName } });
+  if (error) appError("No se pudo actualizar tu perfil.");
+
+  redirect("/app?profile=updated");
+}
+
+export async function signOut() {
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete(ACTIVE_BUSINESS_COOKIE);
+  redirect("/login");
+}

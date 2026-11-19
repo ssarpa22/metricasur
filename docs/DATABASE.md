@@ -71,6 +71,12 @@ The pgTAP suite in `supabase/tests/tenancy_rls.test.sql` checks anonymous access
 
 The membership helper functions use `SECURITY DEFINER` with an empty `search_path` and fully qualified table names to avoid recursive RLS evaluation and search-path attacks.
 
+## Application workspace context
+
+The Next.js application stores the last selected workspace ID in an HTTP-only, same-site cookie. This value is a navigation preference only. Server actions verify the authenticated user and query `business_memberships` before accepting a workspace switch. Every future tenant-scoped server operation must repeat its own membership and permission checks; it must not trust this cookie as authorization.
+
+The application uses the Supabase publishable/anon key through the SSR client. The service-role key is never needed in browser code or this workspace flow.
+
 ## Rules for future tables
 
 Every business-owned table must:
@@ -85,4 +91,4 @@ Do not use the Supabase service-role key in browser code. Server-side applicatio
 
 ## Deliberate limitations
 
-This migration does not yet add invitations, member management, profiles, customer records, industry modules, or a business switcher. Those workflows will be implemented in later PRs with explicit authorization and tests.
+This increment adds account sign-up/sign-in, profile display-name editing, business creation, and workspace selection. It does not yet add invitations, member management, customer records, industry modules, or a full business dashboard. Those workflows will be implemented in later increments.
