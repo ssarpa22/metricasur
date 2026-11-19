@@ -47,6 +47,16 @@ npx supabase db push
 
 Do not commit project credentials or database passwords.
 
+## Test authorization and tenant isolation
+
+With the local Supabase stack running and migrations applied, run:
+
+```powershell
+npx supabase test db
+```
+
+The pgTAP suite in `supabase/tests/tenancy_rls.test.sql` checks anonymous access, atomic business creation, tenant isolation, membership visibility, and owner/admin/member write permissions. Test fixtures are rolled back and do not persist.
+
 ## Authorization model
 
 | Operation | Initial policy |
