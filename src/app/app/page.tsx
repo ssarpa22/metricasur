@@ -5,10 +5,11 @@ import { BarChart3, Building2, ChevronDown, LogOut, Plus, UserRound } from "luci
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { industries, industrySchema } from "@/lib/industries";
-import { createBusiness, signOut, switchBusiness, updateProfile } from "./actions";
+import { getRecommendedModules, moduleCatalog } from "@/lib/modules";
+import { createBusiness, setBusinessModuleEnabled, signOut, switchBusiness, updateProfile } from "./actions";
 
 type AppPageProps = {
-  searchParams: Promise<{ error?: string; created?: string; profile?: string }>;
+  searchParams: Promise<{ error?: string; created?: string; profile?: string; modules?: string }>;
 };
 
 export default async function AppPage({ searchParams }: AppPageProps) {
@@ -49,6 +50,12 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   const activeBusiness = businesses?.find((business) => business.id === preferredBusinessId) ?? businesses?.[0] ?? null;
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role;
   const activeIndustry = industrySchema.safeParse(activeBusiness?.industry);
+  const { data: moduleInstallations } = activeBusiness
+    ? await supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
+    : { data: [] };
+  const enabledModules = new Map((moduleInstallations ?? []).map((installation) => [installation.module_slug, installation.enabled]));
+  const recommendedModuleSlugs = new Set(getRecommendedModules(activeIndustry.success ? activeIndustry.data : "other").map((module) => module.slug));
+  const canManageModules = activeRole === "owner" || activeRole === "admin";
   const industry = activeIndustry.success ? industries[activeIndustry.data] : industries.other;
   const fullName = typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "";
   const firstName = fullName.trim().split(/\s+/)[0] || user.email?.split("@")[0] || "ahí";
@@ -77,6 +84,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
         {params.error && <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{params.error}</p>}
         {params.created && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">Tu espacio de trabajo está creado. ¡Vamos a ponerlo en marcha!</p>}
         {params.profile && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">Tu perfil se actualizó correctamente.</p>}
+        {params.modules && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">La configuración de módulos se actualizó.</p>}
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
           <section className="rounded-3xl border border-[#e4eae6] bg-white p-6 sm:p-8">
@@ -112,6 +120,49 @@ export default async function AppPage({ searchParams }: AppPageProps) {
                     ))}
                   </ul>
                   <p className="mt-4 border-t border-[#edf0ee] pt-3 text-xs leading-5 text-[#84918b]">Estas prioridades orientan la configuración inicial. Los módulos operativos específicos se irán habilitando para cada actividad.</p>
+                </section>
+                <section className="mt-5 rounded-2xl border border-[#e4eae6] bg-white p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold tracking-[0.12em] text-[#16785a]">MÓDULOS DE TU NEGOCIO</p>
+                      <h3 className="mt-2 text-lg font-semibold text-[#203b2e]">Herramientas para tu actividad</h3>
+                      <p className="mt-1 text-sm text-[#718078]">Activá solo las herramientas que necesitás. Podés cambiar esta selección cuando quieras.</p>
+                    </div>
+                    <span className="rounded-full bg-[#edf6f1] px-3 py-1 text-xs font-semibold text-[#246449]">{[...enabledModules.values()].filter(Boolean).length} activos</span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {moduleCatalog.map((module) => {
+                      const enabled = enabledModules.get(module.slug) ?? false;
+                      const recommended = recommendedModuleSlugs.has(module.slug);
+                      return (
+                        <article key={module.slug} className="rounded-xl border border-[#e7ece9] bg-[#fcfdfc] p-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-semibold text-[#34443d]">{module.name}</h4>
+                              <p className="mt-1 text-xs leading-5 text-[#718078]">{module.description}</p>
+                            </div>
+                            <span className={enabled ? "shrink-0 rounded-full bg-[#e8f5ed] px-2 py-1 text-[10px] font-semibold text-[#28734f]" : "shrink-0 rounded-full bg-[#f1f3f2] px-2 py-1 text-[10px] font-semibold text-[#75817b]"}>
+                              {enabled ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            {recommended ? <span className="text-[11px] font-medium text-[#8a7650]">Recomendado para tu rubro</span> : <span className="text-[11px] text-[#9aa59f]">Catálogo general</span>}
+                            {canManageModules ? (
+                              <form action={setBusinessModuleEnabled}>
+                                <input type="hidden" name="businessId" value={activeBusiness.id}/>
+                                <input type="hidden" name="moduleSlug" value={module.slug}/>
+                                <input type="hidden" name="enabled" value={String(!enabled)}/>
+                                <button type="submit" className={enabled ? "rounded-lg border border-[#dce5e0] px-3 py-1.5 text-xs font-semibold text-[#53635a] hover:border-[#b9c9bf]" : "rounded-lg bg-[#16785a] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#105c45]"}>
+                                  {enabled ? "Desactivar" : "Activar"}
+                                </button>
+                              </form>
+                            ) : <span className="text-[11px] text-[#9aa59f]">Solo lectura</span>}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  {!canManageModules && <p className="mt-3 text-xs text-[#84918b]">Solo los propietarios y administradores pueden cambiar los módulos.</p>}
                 </section>
                 {(businesses?.length ?? 0) > 1 && (
                   <form action={switchBusiness} className="mt-5">

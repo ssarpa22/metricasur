@@ -6,6 +6,39 @@ Modules add industry-specific workflows without turning the universal core into 
 
 A module is a versioned, first-party package of domain capabilities, UI, permissions, events, and configuration. In the initial release, modules are shipped with the application and enabled per business. They are not arbitrary code uploaded by customers.
 
+## Current implementation
+
+The platform-owned catalog lives in `src/lib/modules.ts` and validates module identifiers with Zod. Each definition includes a stable slug, display name, description, category, and compatible industries.
+
+The `business_modules` table stores installations per workspace:
+- Every row belongs to exactly one `business_id`.
+- Module slugs are constrained by a database allowlist.
+- New workspaces receive a starter set based on their industry.
+- Existing workspaces are backfilled with the starter set for their current industry.
+- Owners and admins can enable or disable modules; members can read the configuration.
+- Disabling changes only the `enabled` flag. It never deletes module data.
+- RLS enforces tenant isolation independently of the server actions.
+
+The current increment establishes module discovery and lifecycle configuration. It does not yet implement the operational records inside each module.
+
+## Starter module recommendations
+
+| Industry | Starter modules |
+| --- | --- |
+| Retail | Sales, inventory, purchasing, suppliers, customers, tasks |
+| Food service | Sales, inventory, purchasing, suppliers, waste tracking, menu costing, tasks |
+| Butcher | Sales, inventory, purchasing, suppliers, waste tracking, tasks |
+| Greengrocer | Sales, inventory, purchasing, suppliers, waste tracking, tasks |
+| Beauty | Appointments, services, customers, inventory, tasks |
+| Healthcare | Appointments, services, customers, tasks |
+| Professional services | Customers, projects, proposals, services, tasks |
+| Freelancer | Customers, projects, time tracking, proposals, tasks |
+| Construction | Projects, work orders, purchasing, suppliers, tasks |
+| Manufacturing | Production, inventory, purchasing, suppliers, work orders, tasks |
+| Other | Customers, tasks |
+
+These are conservative starting points, not hard restrictions. Owners and admins can enable additional compatible modules from the catalog.
+
 ## Module lifecycle
 
 1. **Discover:** show compatible modules in the catalog.
@@ -16,8 +49,6 @@ A module is a versioned, first-party package of domain capabilities, UI, permiss
 6. **Update:** migrate configuration/data using explicit versioned migrations.
 7. **Disable:** hide module functionality without deleting its data.
 8. **Uninstall:** only where safe, with explicit data-retention and export rules.
-
-Disabling a module must never silently delete business records.
 
 ## Manifest concept
 
@@ -31,15 +62,8 @@ type ModuleManifest = {
   description: string;
   category: string;
   platformApiVersion: string;
-  navigation: Array<{
-    label: string;
-    route: string;
-    icon?: string;
-  }>;
-  permissions: Array<{
-    key: string;
-    description: string;
-  }>;
+  navigation: Array<{ label: string; route: string; icon?: string }>;
+  permissions: Array<{ key: string; description: string }>;
   tools: Array<{
     name: string;
     description: string;
@@ -47,29 +71,12 @@ type ModuleManifest = {
     requiredPermissions: string[];
     approval: "automatic" | "required" | "prohibited";
   }>;
-  events: Array<{
-    name: string;
-    description: string;
-  }>;
+  events: Array<{ name: string; description: string }>;
   configurationSchema: unknown;
 };
 ```
 
 The actual runtime contract must use validated schemas, not trust arbitrary `unknown` input.
-
-## Module implementation contract
-
-Each module should provide:
-- Domain types and validation schemas.
-- Application use cases.
-- Database migrations owned by the module.
-- Server-side repositories/services.
-- UI routes and reusable components.
-- Permission declarations.
-- AI tool definitions, if applicable.
-- Domain events and automation handlers.
-- Tests for business rules and tenant isolation.
-- Documentation of assumptions and regulatory constraints.
 
 ## Data ownership
 
@@ -100,7 +107,7 @@ Services, professionals, appointments, resources, packages, and product usage.
 - Permissions are least-privilege.
 - RLS and service-layer checks enforce tenant scope.
 - Migrations are reversible where practical and safe.
-- Disabling the module preserves data.
+- Disabling a module preserves data.
 - AI tools have strict input/output schemas and approval policies.
 - Domain rules have automated tests.
 - Sensitive data is classified and protected.

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { industrySchema } from "@/lib/industries";
+import { moduleSlugSchema } from "@/lib/modules";
 
 const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
 
@@ -90,4 +91,44 @@ export async function signOut() {
   const cookieStore = await cookies();
   cookieStore.delete(ACTIVE_BUSINESS_COOKIE);
   redirect("/login");
+}
+
+ 
+export async function setBusinessModuleEnabled(formData: FormData) {
+  const businessId = String(formData.get("businessId") ?? "");
+  const moduleSlug = moduleSlugSchema.safeParse(formData.get("moduleSlug"));
+  const enabled = formData.get("enabled") === "true";
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId)) {
+    appError("El espacio de trabajo seleccionado no es válido.");
+  }
+  if (!moduleSlug.success) appError("El módulo seleccionado no es válido.");
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("business_memberships")
+    .select("role")
+    .eq("business_id", businessId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership || !["owner", "admin"].includes(membership.role)) {
+    appError("No tenés permisos para modificar los módulos de este negocio.");
+  }
+
+  const { error } = await supabase.from("business_modules").upsert(
+    {
+      business_id: businessId,
+      module_slug: moduleSlug.data,
+      enabled,
+      installed_by: user.id,
+    },
+    { onConflict: "business_id,module_slug" },
+  );
+
+  if (error) appError("No se pudo actualizar el módulo. Intentá nuevamente.");
+  redirect("/app?modules=updated");
 }
