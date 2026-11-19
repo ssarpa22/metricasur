@@ -93,11 +93,13 @@ export async function signOut() {
   redirect("/login");
 }
 
- 
+
 export async function setBusinessModuleEnabled(formData: FormData) {
   const businessId = String(formData.get("businessId") ?? "");
   const moduleSlug = moduleSlugSchema.safeParse(formData.get("moduleSlug"));
-  const enabled = formData.get("enabled") === "true";
+  const enabledValue = formData.get("enabled");
+  if (enabledValue !== "true" && enabledValue !== "false") appError("El estado del módulo no es válido.");
+  const enabled = enabledValue === "true";
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId)) {
     appError("El espacio de trabajo seleccionado no es válido.");

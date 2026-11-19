@@ -28,6 +28,7 @@ for each row execute function public.touch_updated_at();
 alter table public.business_modules enable row level security;
 
 revoke all on public.business_modules from public, anon;
+grant select on public.business_modules to anon;
 grant select, insert, update on public.business_modules to authenticated;
 
 create policy "Members can read their business modules"
