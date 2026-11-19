@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { BarChart3, Building2, ChevronDown, LogOut, Plus, UserRound } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, LogOut, Plus, UserRound, Trash2 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { industries, industrySchema } from "@/lib/industries";
 import { getRecommendedModules, moduleCatalog } from "@/lib/modules";
 import { createBusiness, setBusinessModuleEnabled, signOut, switchBusiness, updateProfile } from "./actions";
+import { DeleteBusinessForm } from "./delete-business-form";
 
 type AppPageProps = {
-  searchParams: Promise<{ error?: string; created?: string; profile?: string; modules?: string }>;
+  searchParams: Promise<{ error?: string; created?: string; profile?: string; modules?: string; deleted?: string }>;
 };
 
 export default async function AppPage({ searchParams }: AppPageProps) {
@@ -85,6 +86,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
         {params.created && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">Tu espacio de trabajo está creado. ¡Vamos a ponerlo en marcha!</p>}
         {params.profile && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">Tu perfil se actualizó correctamente.</p>}
         {params.modules && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">La configuración de módulos se actualizó.</p>}
+        {params.deleted && <p role="status" className="mb-6 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">El espacio de trabajo se eliminó correctamente.</p>}
 
         <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
           <section className="rounded-3xl border border-[#e4eae6] bg-white p-6 sm:p-8">
@@ -164,6 +166,18 @@ export default async function AppPage({ searchParams }: AppPageProps) {
                   </div>
                   {!canManageModules && <p className="mt-3 text-xs text-[#84918b]">Solo los propietarios y administradores pueden cambiar los módulos.</p>}
                 </section>
+                {activeRole === "owner" && (
+                  <section className="mt-5 rounded-2xl border border-red-200 bg-red-50/50 p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700"><Trash2 size={17}/></span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-red-900">Eliminar este espacio</h3>
+                        <p className="mt-1 text-xs leading-5 text-red-800/80">Eliminá un espacio que creaste por error. Esta acción borra el negocio, sus miembros y la configuración de módulos; no se puede deshacer.</p>
+                        <DeleteBusinessForm businessId={activeBusiness.id} businessName={activeBusiness.name}/>
+                      </div>
+                    </div>
+                  </section>
+                )}
                 {(businesses?.length ?? 0) > 1 && (
                   <form action={switchBusiness} className="mt-5">
                     <label className="block text-sm font-medium text-[#34443d]">Cambiar de espacio</label>
