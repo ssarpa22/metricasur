@@ -59,17 +59,15 @@ select set_config('request.jwt.claims', '{"sub":"30000000-0000-4000-8000-0000000
 select extensions.is((select count(*)::integer from public.businesses), 1, 'member sees its own workspace');
 select extensions.is((select count(*)::integer from public.business_memberships), 1, 'member sees only its own membership');
 
-do $$
-declare
-  affected_rows integer;
-begin
-  update public.businesses
-  set name = 'Unauthorized rename'
-  where id = current_setting('test.created_business_id')::uuid;
-  get diagnostics affected_rows = row_count;
-  perform extensions.is(affected_rows, 0, 'member cannot update business details');
-end;
-$$;
+update public.businesses
+set name = 'Unauthorized rename'
+where id = current_setting('test.created_business_id')::uuid;
+select extensions.is(
+  (select count(*)::integer from public.businesses
+   where id = current_setting('test.created_business_id')::uuid and name = 'Workspace A'),
+  1,
+  'member cannot update business details'
+);
 
 select extensions.throws_ok(
   $$ insert into public.business_memberships (business_id, user_id, role)
@@ -79,17 +77,16 @@ select extensions.throws_ok(
   'member cannot insert or elevate memberships'
 );
 
-do $$
-declare
-  affected_rows integer;
-begin
-  delete from public.business_memberships
-  where business_id = current_setting('test.created_business_id')::uuid
-    and user_id = '30000000-0000-4000-8000-000000000003';
-  get diagnostics affected_rows = row_count;
-  perform extensions.is(affected_rows, 0, 'member cannot delete memberships');
-end;
-$$;
+delete from public.business_memberships
+where business_id = current_setting('test.created_business_id')::uuid
+  and user_id = '30000000-0000-4000-8000-000000000003';
+select extensions.is(
+  (select count(*)::integer from public.business_memberships
+   where business_id = current_setting('test.created_business_id')::uuid
+     and user_id = '30000000-0000-4000-8000-000000000003'),
+  1,
+  'member cannot delete memberships'
+);
 reset role;
 
 -- An admin can inspect workspace memberships and update business details.
@@ -98,17 +95,15 @@ select set_config('request.jwt.claim.sub', '40000000-0000-4000-8000-000000000004
 select set_config('request.jwt.claims', '{"sub":"40000000-0000-4000-8000-000000000004","role":"authenticated"}', true);
 select extensions.is((select count(*)::integer from public.business_memberships where business_id = current_setting('test.created_business_id')::uuid), 3, 'admin can read all memberships in its workspace');
 
-do $$
-declare
-  affected_rows integer;
-begin
-  update public.businesses
-  set name = 'Workspace A updated'
-  where id = current_setting('test.created_business_id')::uuid;
-  get diagnostics affected_rows = row_count;
-  perform extensions.is(affected_rows, 1, 'admin can update business details');
-end;
-$$;
+update public.businesses
+set name = 'Workspace A updated'
+where id = current_setting('test.created_business_id')::uuid;
+select extensions.is(
+  (select count(*)::integer from public.businesses
+   where id = current_setting('test.created_business_id')::uuid and name = 'Workspace A updated'),
+  1,
+  'admin can update business details'
+);
 reset role;
 
 -- Owner B cannot see tenant A.
