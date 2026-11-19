@@ -1,6 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
+import { Trash2 } from "lucide-react";
 import { deleteBusiness } from "./actions";
 
 type DeleteBusinessFormProps = {
