@@ -5,9 +5,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { industrySchema, type Industry } from "@/lib/industries";
 import { AppShell } from "./app-shell";
+import { moduleSlugSchema } from "@/lib/modules";
 
 type AppPageProps = {
-  searchParams: Promise<{ error?: string; created?: string; profile?: string; modules?: string; deleted?: string; section?: string }>;
+  searchParams: Promise<{ error?: string; created?: string; profile?: string; modules?: string; deleted?: string; saved?: string; deletedRecord?: string; section?: string }>;
 };
 
 export default async function AppPage({ searchParams }: AppPageProps) {
@@ -36,6 +37,16 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     ? await supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
     : { data: [] };
   const enabledModules = Object.fromEntries((installations ?? []).map((item) => [item.module_slug, item.enabled])) as Record<string, boolean>;
+  const selectedModule = moduleSlugSchema.safeParse(params.section);
+  const { data: recordRows } = activeBusiness && selectedModule.success && enabledModules[selectedModule.data]
+    ? await supabase.from("business_records").select("id, title, description, status, amount, quantity, due_date, category, reference, created_at").eq("business_id", activeBusiness.id).eq("module_slug", selectedModule.data).order("created_at", { ascending: false }).limit(200)
+    : { data: [] };
+  const records = (recordRows ?? []).map((record) => ({
+    ...record,
+    amount: record.amount === null ? null : Number(record.amount),
+    quantity: record.quantity === null ? null : Number(record.quantity),
+    status: record.status as "open" | "in_progress" | "completed" | "cancelled",
+  }));
   const parsedIndustry = industrySchema.safeParse(activeBusiness?.industry);
   const activeIndustry: Industry = parsedIndustry.success ? parsedIndustry.data : "other";
   const fullName = typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "";
@@ -50,7 +61,8 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     activeRole={activeRole}
     activeIndustry={activeIndustry}
     enabledModules={enabledModules}
+    records={records}
     section={params.section ?? "home"}
-    notices={{ error: params.error, created: params.created, profile: params.profile, modules: params.modules, deleted: params.deleted }}
+    notices={{ error: params.error, created: params.created, profile: params.profile, modules: params.modules, deleted: params.deleted, saved: params.saved, deletedRecord: params.deletedRecord }}
   />;
 }
