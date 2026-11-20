@@ -25,22 +25,34 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   if (membershipsError) return <main className="mx-auto max-w-3xl px-6 py-20"><p className="text-sm text-red-700">No pudimos cargar tus espacios de trabajo. Actualizá la página para intentar de nuevo.</p></main>;
 
   const businessIds = memberships?.map((membership) => membership.business_id) ?? [];
-  const { data: businessRows } = businessIds.length
+  const { data: businessRows, error: businessesError } = businessIds.length
     ? await supabase.from("businesses").select("id, name, industry, created_at").in("id", businessIds).order("created_at")
-    : { data: [] };
+    : { data: [], error: null };
   const businesses = (businessRows ?? []) as { id: string; name: string; industry: string; created_at: string }[];
   const cookieStore = await cookies();
   const preferredId = cookieStore.get("metricasur_active_business")?.value;
   const activeBusiness = businesses.find((business) => business.id === preferredId) ?? businesses[0] ?? null;
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role ?? null;
-  const { data: installations } = activeBusiness
+  const { data: installations, error: installationsError } = activeBusiness
     ? await supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
-    : { data: [] };
+    : { data: [], error: null };
   const enabledModules = Object.fromEntries((installations ?? []).map((item) => [item.module_slug, item.enabled])) as Record<string, boolean>;
   const selectedModule = moduleSlugSchema.safeParse(params.section);
-  const { data: allRecordRows } = activeBusiness
+  const { data: allRecordRows, error: recordsError } = activeBusiness
     ? await supabase.from("business_records").select("id, module_slug, title, description, status, amount, quantity, due_date, category, reference, created_at").eq("business_id", activeBusiness.id).order("created_at", { ascending: false }).limit(500)
-    : { data: [] };
+    : { data: [], error: null };
+
+  // Never disguise a failed database request as a genuinely empty workspace.
+  if (businessesError) console.error("[MétricaSur] No se pudieron cargar los negocios:", businessesError);
+  if (installationsError) console.error("[MétricaSur] No se pudieron cargar los módulos:", installationsError);
+  if (recordsError) console.error("[MétricaSur] No se pudieron cargar los registros:", recordsError);
+  const dataIssue = businessesError
+    ? "No pudimos cargar tus espacios de trabajo. Revisá la conexión con Supabase y las migraciones."
+    : installationsError
+      ? "No pudimos cargar los módulos de este negocio. Es posible que falte aplicar una migración de Supabase."
+      : recordsError
+        ? "No pudimos cargar los registros. Es posible que falte aplicar una migración de Supabase."
+        : undefined;
   const allRecords = (allRecordRows ?? []).map((record) => ({
     ...record,
     amount: record.amount === null ? null : Number(record.amount),
@@ -64,9 +76,10 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     activeRole={activeRole}
     activeIndustry={activeIndustry}
     enabledModules={enabledModules}
+    moduleSetupMissing={Boolean(activeBusiness && !installationsError && (installations ?? []).length === 0)}
     records={records}
     allRecords={allRecords}
     section={params.section ?? "home"}
-    notices={{ error: params.error, created: params.created, profile: params.profile, modules: params.modules, deleted: params.deleted, saved: params.saved, deletedRecord: params.deletedRecord }}
+    notices={{ error: params.error, dataIssue, created: params.created, profile: params.profile, modules: params.modules, deleted: params.deleted, saved: params.saved, deletedRecord: params.deletedRecord }}
   />;
 }

@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { industrySchema } from "@/lib/industries";
+import { getRecommendedModules } from "@/lib/modules";
 import { moduleSlugSchema } from "@/lib/modules";
 
 const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
@@ -93,6 +94,54 @@ export async function signOut() {
   redirect("/login");
 }
 
+
+
+export async function restoreRecommendedBusinessModules(formData: FormData) {
+  const businessId = String(formData.get("businessId") ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(businessId)) {
+    appError("El espacio de trabajo seleccionado no es válido.");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("business_memberships")
+    .select("role")
+    .eq("business_id", businessId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membershipError || !membership || !["owner", "admin"].includes(membership.role)) {
+    appError("Solo el propietario o un administrador puede instalar módulos.");
+  }
+
+  const { data: business, error: businessError } = await supabase
+    .from("businesses")
+    .select("industry")
+    .eq("id", businessId)
+    .maybeSingle();
+  const industry = industrySchema.safeParse(business?.industry);
+  if (businessError || !industry.success) {
+    appError("No pudimos identificar el rubro del negocio. Revisá la configuración e intentá nuevamente.");
+  }
+
+  const recommended = getRecommendedModules(industry.data);
+  const { error } = await supabase.from("business_modules").upsert(
+    recommended.map((module) => ({
+      business_id: businessId,
+      module_slug: module.slug,
+      installed_by: user.id,
+    })),
+    { onConflict: "business_id,module_slug", ignoreDuplicates: true },
+  );
+  if (error) {
+    console.error("[MétricaSur] No se pudieron restaurar los módulos:", error);
+    appError("No se pudieron instalar los módulos. Verificá que las migraciones de Supabase estén aplicadas.");
+  }
+
+  redirect("/app?section=settings&modules=updated");
+}
 
 export async function setBusinessModuleEnabled(formData: FormData) {
   const businessId = String(formData.get("businessId") ?? "");
