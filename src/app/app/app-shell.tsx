@@ -185,6 +185,8 @@ export function AppShell(props: Props) {
             <SettingsView {...props} industry={industry} isManager={isManager}/>
           ) : props.section === "assistant" ? (
             <AssistantView/>
+          ) : props.section === "reports" ? (
+            <ReportsView/>
           ) : moduleCatalog.some((module) => module.slug === props.section) ? (
             <ModuleView slug={props.section} enabled={props.enabledModules[props.section] ?? false}/>
           ) : (
