@@ -268,6 +268,12 @@ function AssistantView() {
   return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Sparkles size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[#263b30]">Tu asistente de negocio</h1><p className="mt-2 text-sm leading-6 text-[#7d8a82]">La idea es que puedas consultar información, recibir recomendaciones y delegar tareas repetitivas con permisos y controles claros.</p><div className="mt-6 rounded-xl border border-dashed border-[#dce6df] bg-[#fafcfb] p-5"><p className="text-sm font-semibold text-[#405748]">Estamos construyendo el asistente</p><p className="mt-1 text-sm leading-6 text-[#839087]">Todavía no está conectado a tus datos ni puede ejecutar acciones. Primero estamos preparando la estructura y los permisos para hacerlo de forma segura.</p></div></div>;
 }
 
+const moduleGroups: { title: string; slugs: string[] }[] = [
+  { title: "Ventas y clientes", slugs: ["sales", "customers", "proposals", "services"] },
+  { title: "Operaciones", slugs: ["inventory", "purchasing", "suppliers", "waste_tracking", "production", "work_orders"] },
+  { title: "Organización", slugs: ["appointments", "projects", "time_tracking", "tasks"] },
+];
+
 function SettingsView(props: Props & { industry: (typeof industries)[Industry]; isManager: boolean }) {
   return <div className="space-y-6"><div><h1 className="text-2xl font-semibold text-[#263b30]">Configuración</h1><p className="mt-2 text-sm text-[#7d8a82]">Todo lo importante de tu cuenta y tu negocio, en un solo lugar.</p></div>
     <div className="grid gap-5 xl:grid-cols-2">
