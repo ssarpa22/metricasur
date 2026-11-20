@@ -97,7 +97,7 @@ export async function updateBusinessRecord(formData: FormData) {
   const amount = amountRaw ? Number(amountRaw) : null;
   const quantity = quantityRaw ? Number(quantityRaw) : null;
   if ((amount !== null && (!Number.isFinite(amount) || amount < 0)) || (quantity !== null && (!Number.isFinite(quantity) || quantity < 0))) fail(slug, "Importe o cantidad no válidos.");
-  if (dueDate && !/^\\d{4}-\\d{2}-\\d{2}$/.test(dueDate)) fail(slug, "La fecha no es válida.");
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) fail(slug, "La fecha no es válida.");
   const { supabase } = await authorize(businessId, slug);
   const { error } = await supabase.from("business_records").update({
     title, description, category, reference, status, amount, quantity, due_date: dueDate || null,
