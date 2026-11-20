@@ -38,15 +38,18 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     : { data: [] };
   const enabledModules = Object.fromEntries((installations ?? []).map((item) => [item.module_slug, item.enabled])) as Record<string, boolean>;
   const selectedModule = moduleSlugSchema.safeParse(params.section);
-  const { data: recordRows } = activeBusiness && selectedModule.success && enabledModules[selectedModule.data]
-    ? await supabase.from("business_records").select("id, title, description, status, amount, quantity, due_date, category, reference, created_at").eq("business_id", activeBusiness.id).eq("module_slug", selectedModule.data).order("created_at", { ascending: false }).limit(200)
+  const { data: allRecordRows } = activeBusiness
+    ? await supabase.from("business_records").select("id, module_slug, title, description, status, amount, quantity, due_date, category, reference, created_at").eq("business_id", activeBusiness.id).order("created_at", { ascending: false }).limit(500)
     : { data: [] };
-  const records = (recordRows ?? []).map((record) => ({
+  const allRecords = (allRecordRows ?? []).map((record) => ({
     ...record,
     amount: record.amount === null ? null : Number(record.amount),
     quantity: record.quantity === null ? null : Number(record.quantity),
     status: record.status as "open" | "in_progress" | "completed" | "cancelled",
   }));
+  const records = selectedModule.success && enabledModules[selectedModule.data]
+    ? allRecords.filter((record) => record.module_slug === selectedModule.data).slice(0,200)
+    : [];
   const parsedIndustry = industrySchema.safeParse(activeBusiness?.industry);
   const activeIndustry: Industry = parsedIndustry.success ? parsedIndustry.data : "other";
   const fullName = typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "";
@@ -62,6 +65,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     activeIndustry={activeIndustry}
     enabledModules={enabledModules}
     records={records}
+    allRecords={allRecords}
     section={params.section ?? "home"}
     notices={{ error: params.error, created: params.created, profile: params.profile, modules: params.modules, deleted: params.deleted, saved: params.saved, deletedRecord: params.deletedRecord }}
   />;

@@ -17,6 +17,7 @@ import { DeleteBusinessForm } from "./delete-business-form";
 import { ModuleWorkspace } from "./module-workspace";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
+type BusinessRecord = { id: string; module_slug: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string };
 type Props = {
   firstName: string;
   fullName: string;
@@ -27,7 +28,8 @@ type Props = {
   activeIndustry: Industry;
   enabledModules: Record<string, boolean>;
   section: string;
-  records: { id: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string }[];
+  records: BusinessRecord[];
+  allRecords: BusinessRecord[];
   notices: { error?: string; created?: string; profile?: string; modules?: string; deleted?: string; saved?: string; deletedRecord?: string };
 };
 
@@ -182,13 +184,13 @@ export function AppShell(props: Props) {
           {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
 
           {!active ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
-            <Dashboard firstName={props.firstName} business={active} industry={industry} modules={enabledModuleList.length}/>
+            <Dashboard firstName={props.firstName} business={active} industry={industry} modules={enabledModuleList.length} records={props.allRecords}/>
           ) : props.section === "settings" ? (
             <SettingsView {...props} industry={industry} isManager={isManager}/>
           ) : props.section === "assistant" ? (
-            <AssistantView/>
+            <AssistantView records={props.allRecords} industry={industry}/>
           ) : props.section === "reports" ? (
-            <ReportsView/>
+            <ReportsView records={props.allRecords} industry={industry}/>
           ) : moduleCatalog.some((module) => module.slug === props.section) ? (
             <ModuleWorkspace businessId={active.id} slug={props.section} name={moduleCatalog.find((module) => module.slug === props.section)?.name ?? "Módulo"} description={moduleCatalog.find((module) => module.slug === props.section)?.description ?? ""} records={props.records} enabled={props.enabledModules[props.section] ?? false}/>
           ) : (
@@ -200,7 +202,7 @@ export function AppShell(props: Props) {
   );
 }
 
-function Dashboard({ firstName, business, industry, modules }: { firstName: string; business: Business; industry: (typeof industries)[Industry]; modules: number }) {
+function Dashboard({ firstName, business, industry, modules, records }: { firstName: string; business: Business; industry: (typeof industries)[Industry]; modules: number; records: BusinessRecord[] }) {
   return <div className="space-y-7">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div><p className="text-sm font-medium text-[#718078]">Tu resumen de hoy</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#20352a] sm:text-[34px]">¡Hola, {firstName}! <span className="text-2xl">👋</span></h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#78867e]">Este es el punto de partida para organizar {business.name.toLowerCase()}. Vamos paso a paso.</p></div>
@@ -208,10 +210,10 @@ function Dashboard({ firstName, business, industry, modules }: { firstName: stri
     </div>
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard icon={Store} label="Actividad" value={industry.label} note="Rubro configurado"/>
-      <StatCard icon={Package} label="Módulos activos" value={String(modules)} note="Herramientas habilitadas"/>
-      <StatCard icon={ClipboardList} label="Organización" value="A tu ritmo" note="Prepará tus próximos pasos"/>
-      <StatCard icon={Sparkles} label="Asistente IA" value="En preparación" note="Próximamente"/>
+      <StatCard icon={Store} label="Rubro" value={industry.label} note="Espacio configurado"/>
+      <StatCard icon={Package} label="Registros" value={String(records.length)} note="Operaciones guardadas"/>
+      <StatCard icon={ClipboardList} label="Pendientes" value={String(records.filter((r) => r.status === "open" || r.status === "in_progress").length)} note="Requieren seguimiento"/>
+      <StatCard icon={Sparkles} label="Módulos activos" value={String(modules)} note="Herramientas habilitadas"/>
     </div>
 
     <div className="grid gap-5 xl:grid-cols-[1.45fr_.85fr]">
@@ -227,11 +229,7 @@ function Dashboard({ firstName, business, industry, modules }: { firstName: stri
       </section>
       <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7">
         <div className="flex items-center gap-2"><Activity size={18} className="text-[#28734f]"/><h2 className="text-base font-semibold text-[#2b4034]">Actividad reciente</h2></div>
-        <div className="flex min-h-[210px] flex-col items-center justify-center py-8 text-center">
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-[#f0f5f1] text-[#7e9b88]"><ArrowDownLeft size={22}/></span>
-          <p className="mt-4 text-sm font-semibold text-[#46594d]">Todavía no hay actividad</p>
-          <p className="mt-1 max-w-[230px] text-xs leading-5 text-[#8b9790]">Cuando registres operaciones, vas a encontrar acá un resumen de los movimientos recientes.</p>
-        </div>
+        {records.length ? <div className="mt-5 space-y-3">{records.slice(0,5).map((record) => <div key={record.id} className="flex items-center justify-between gap-3 border-b border-[#edf0ee] pb-3 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-[#405448]">{record.title}</p><p className="text-[11px] text-[#89958e]">{moduleCatalog.find((m) => m.slug === record.module_slug)?.name ?? record.module_slug} · {new Date(record.created_at).toLocaleDateString("es-AR")}</p></div><span className="shrink-0 text-[10px] font-semibold text-[#397552]">{record.status === "completed" ? "Completado" : record.status === "in_progress" ? "En curso" : record.status === "cancelled" ? "Cancelado" : "Pendiente"}</span></div>)}<Link href="/app?section=reports" className="inline-flex text-xs font-semibold text-[#176b4f] hover:underline">Ver informes <ArrowRight size={13}/></Link></div> : <div className="flex min-h-[190px] flex-col items-center justify-center py-8 text-center"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#f0f5f1] text-[#7e9b88]"><ArrowDownLeft size={22}/></span><p className="mt-4 text-sm font-semibold text-[#46594d]">Todavía no hay actividad</p><p className="mt-1 max-w-[230px] text-xs leading-5 text-[#8b9790]">Creá registros en tus módulos y aparecerán acá.</p><Link href="/app?section=operations" className="mt-3 text-xs font-semibold text-[#176b4f]">Ir a operaciones →</Link></div>}
       </section>
     </div>
 
@@ -255,12 +253,42 @@ function ModuleCollection({ title, description, modules }: { title: string; desc
   </div>;
 }
 
-function ReportsView() {
-  return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><BarChart3 size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[#263b30]">Informes de tu negocio</h1><p className="mt-2 text-sm leading-6 text-[#7d8a82]">Acá vas a poder entender ventas, costos, rentabilidad y evolución de tu actividad.</p><div className="mt-6 rounded-xl border border-dashed border-[#dce6df] bg-[#fafcfb] p-5"><p className="text-sm font-semibold text-[#405748]">Los informes llegarán con los datos operativos</p><p className="mt-1 text-sm leading-6 text-[#839087]">Todavía no hay registros operativos conectados para generar estadísticas confiables. Preferimos mostrarte esto claramente antes que inventar números.</p></div></div>;
+function ReportsView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
+  const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+  const totalAmount = records.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+  const pending = records.filter((r) => r.status === "open" || r.status === "in_progress");
+  const overdue = records.filter((r) => r.due_date && r.due_date < new Date().toISOString().slice(0,10) && r.status !== "completed" && r.status !== "cancelled");
+  const byModule = moduleCatalog.map((m) => ({ ...m, count: records.filter((r) => r.module_slug === m.slug).length })).filter((m) => m.count).sort((a,b) => b.count-a.count);
+  const exportCsv = () => {
+    const header = ["Modulo","Titulo","Estado","Importe ARS","Cantidad","Fecha objetivo","Categoria","Referencia","Creado"];
+    const rows = records.map((r) => [moduleCatalog.find((m) => m.slug === r.module_slug)?.name ?? r.module_slug,r.title,r.status,r.amount ?? "",r.quantity ?? "",r.due_date ?? "",r.category,r.reference,r.created_at]);
+    const csv = [header,...rows].map((row) => row.map((v) => '"' + String(v).replaceAll('"','""') + '"').join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
+    const a = document.createElement("a"); a.href=url; a.download="metricasur-informe.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+  return <div className="space-y-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Análisis del negocio</p><h1 className="mt-2 text-2xl font-semibold text-[#263b30]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[#7d8a82]">Estadísticas calculadas a partir de tus registros guardados.</p></div><button onClick={exportCsv} disabled={!records.length} className="rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Exportar CSV</button></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={Activity} label="Pendientes" value={String(pending.length)} note="Abiertos o en curso"/><StatCard icon={CalendarDays} label="Vencidos" value={String(overdue.length)} note="Requieren atención"/><StatCard icon={Wallet} label="Importes cargados" value={money.format(totalAmount)} note="Suma de importes registrados"/></div>
+    <div className="grid gap-5 xl:grid-cols-2"><section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Actividad por módulo</h2>{byModule.length ? <div className="mt-4 space-y-4">{byModule.map((m) => <div key={m.slug}><div className="mb-1 flex justify-between text-xs"><span className="font-medium text-[#52645a]">{m.name}</span><span className="text-[#839087]">{m.count}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#edf2ee]"><div className="h-full rounded-full bg-[#39805b]" style={{width:`${Math.max(4,m.count/records.length*100)}%`}}/></div></div>)}</div> : <p className="mt-4 text-sm text-[#89958e]">Todavía no hay datos para analizar. Empezá creando registros en tus módulos.</p>}</section>
+    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Distribución por estado</h2><div className="mt-4 space-y-3">{[["Pendiente",records.filter(r=>r.status==="open").length],["En curso",records.filter(r=>r.status==="in_progress").length],["Completado",records.filter(r=>r.status==="completed").length],["Cancelado",records.filter(r=>r.status==="cancelled").length]].map(([label,count])=><div key={String(label)} className="flex items-center justify-between rounded-lg bg-[#f7faf8] px-3 py-2 text-sm"><span className="text-[#52645a]">{label}</span><strong className="text-[#304638]">{count}</strong></div>)}</div></section></div>
+    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Próximas fechas y atrasos</h2>{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).length ? <div className="mt-3 divide-y divide-[#edf0ee]">{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).map(r=><div key={r.id} className="flex justify-between gap-3 py-3 text-sm"><span className="min-w-0 truncate text-[#52645a]">{r.title}</span><span className="shrink-0 text-xs text-[#839087]">{new Date((r.due_date??"")+"T12:00:00").toLocaleDateString("es-AR")}</span></div>)}</div> : <p className="mt-3 text-sm text-[#89958e]">No hay fechas pendientes registradas.</p>}</section>
+  </div>;
 }
 
-function AssistantView() {
-  return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Sparkles size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[#263b30]">Tu asistente de negocio</h1><p className="mt-2 text-sm leading-6 text-[#7d8a82]">La idea es que puedas consultar información, recibir recomendaciones y delegar tareas repetitivas con permisos y controles claros.</p><div className="mt-6 rounded-xl border border-dashed border-[#dce6df] bg-[#fafcfb] p-5"><p className="text-sm font-semibold text-[#405748]">Estamos construyendo el asistente</p><p className="mt-1 text-sm leading-6 text-[#839087]">Todavía no está conectado a tus datos ni puede ejecutar acciones. Primero estamos preparando la estructura y los permisos para hacerlo de forma segura.</p></div></div>;
+function AssistantView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
+  const [question,setQuestion] = useState("");
+  const [answer,setAnswer] = useState("");
+  function ask() {
+    const q=question.trim().toLowerCase();
+    if(!q){setAnswer("Escribí una consulta para que pueda revisar los datos de tu negocio.");return;}
+    const pending=records.filter(r=>r.status==="open"||r.status==="in_progress");
+    const overdue=records.filter(r=>r.due_date && r.due_date<new Date().toISOString().slice(0,10) && r.status!=="completed" && r.status!=="cancelled");
+    if(/venc|atras|demor/.test(q)) setAnswer(`Encontré ${overdue.length} registro(s) vencido(s). ${overdue.slice(0,5).map(r=>r.title).join(", ") || "No hay registros vencidos."}`);
+    else if(/pendient|abiert|tarea|falta/.test(q)) setAnswer(`Tenés ${pending.length} registro(s) pendiente(s) o en curso. ${pending.slice(0,5).map(r=>r.title).join(", ") || "No hay pendientes."}`);
+    else if(/venta|ingres|factur|importe|dinero/.test(q)) setAnswer(`La suma de importes cargados en todos los módulos es ${new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS"}).format(records.reduce((s,r)=>s+(r.amount??0),0))}. Es una suma de registros, no necesariamente ventas cobradas.`);
+    else if(/cliente|proveedor|contact/.test(q)){const matches=records.filter(r=>/cliente|proveedor|contact/.test(r.module_slug));setAnswer(`Hay ${matches.length} registro(s) de clientes/proveedores. ${matches.slice(0,5).map(r=>r.title).join(", ") || "Todavía no hay contactos cargados."}`);}
+    else setAnswer(`Revisé los ${records.length} registros de ${industry.label}. Puedo resumir pendientes, vencimientos, importes y actividad. Probá preguntando "¿Qué tengo vencido?" o "¿Cuántas tareas están pendientes?"`);
+  }
+  return <div className="mx-auto max-w-3xl space-y-5"><div className="rounded-2xl border border-[#e5ebe7] bg-white p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Sparkles size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[#263b30]">Asistente de negocio</h1><p className="mt-2 text-sm leading-6 text-[#7d8a82]">Ya puede consultar tus registros y responder preguntas básicas. Esta primera versión no modifica datos ni ejecuta acciones externas.</p><div className="mt-6 flex flex-wrap gap-2">{["¿Qué tengo vencido?","¿Cuántas tareas están pendientes?","¿Qué importes registré?"].map(q=><button key={q} onClick={()=>{setQuestion(q);setAnswer("");}} className="rounded-full border border-[#dce5e0] px-3 py-2 text-xs text-[#52645a] hover:bg-[#f5f8f6]">{q}</button>)}</div><form className="mt-4 space-y-3" onSubmit={e=>{e.preventDefault();ask();}}><label className="block text-xs font-semibold text-[#52645a]">Consultá sobre {industry.label.toLowerCase()}<textarea value={question} onChange={e=>setQuestion(e.target.value)} rows={3} placeholder="Ej. ¿Qué cosas necesitan atención esta semana?" className="mt-2 w-full rounded-xl border border-[#dce5e0] p-3 text-sm font-normal outline-none focus:border-[#397552]"/></label><button className="rounded-xl bg-[#176b4f] px-5 py-2.5 text-sm font-semibold text-white">Consultar mis datos</button></form>{answer&&<div role="status" className="mt-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] p-4 text-sm leading-6 text-[#24513f]">{answer}</div>}</div><p className="text-xs leading-5 text-[#89958e]">Importante: es un asistente local basado en reglas y tus registros. Todavía no usa un modelo de IA externo.</p></div>;
 }
 
 const moduleGroups: { title: string; slugs: string[] }[] = [
