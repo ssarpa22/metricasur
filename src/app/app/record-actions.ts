@@ -78,3 +78,30 @@ export async function deleteBusinessRecord(formData: FormData) {
   if (error) fail(slug, "No se pudo eliminar el registro.");
   redirect(`/app?section=${encodeURIComponent(slug)}&deleted=1`);
 }
+
+export async function updateBusinessRecord(formData: FormData) {
+  const businessId = value(formData, "businessId");
+  const slug = value(formData, "moduleSlug");
+  const recordId = value(formData, "recordId");
+  const title = value(formData, "title");
+  const description = value(formData, "description");
+  const category = value(formData, "category");
+  const reference = value(formData, "reference");
+  const status = value(formData, "status");
+  const amountRaw = value(formData, "amount");
+  const quantityRaw = value(formData, "quantity");
+  const dueDate = value(formData, "dueDate");
+  if (!uuid.test(recordId) || title.length < 1 || title.length > 160) fail(slug, "Revisá el título del registro.");
+  if (description.length > 4000 || category.length > 80 || reference.length > 120) fail(slug, "Uno de los campos supera el largo permitido.");
+  if (!["open", "in_progress", "completed", "cancelled"].includes(status)) fail(slug, "El estado no es válido.");
+  const amount = amountRaw ? Number(amountRaw) : null;
+  const quantity = quantityRaw ? Number(quantityRaw) : null;
+  if ((amount !== null && (!Number.isFinite(amount) || amount < 0)) || (quantity !== null && (!Number.isFinite(quantity) || quantity < 0))) fail(slug, "Importe o cantidad no válidos.");
+  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) fail(slug, "La fecha no es válida.");
+  const { supabase } = await authorize(businessId, slug);
+  const { error } = await supabase.from("business_records").update({
+    title, description, category, reference, status, amount, quantity, due_date: dueDate || null,
+  }).eq("id", recordId).eq("business_id", businessId).eq("module_slug", slug);
+  if (error) fail(slug, "No se pudieron guardar los cambios.");
+  redirect(`/app?section=${encodeURIComponent(slug)}&saved=1`);
+}
