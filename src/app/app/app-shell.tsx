@@ -313,7 +313,14 @@ function SettingsView(props: Props & { industry: (typeof industries)[Industry]; 
 }
 
 function EmptyWorkspace() {
-  return <div className="mx-auto max-w-xl rounded-2xl border border-[#e5ebe7] bg-white p-8 text-center"><span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Store size={22}/></span><h1 className="mt-4 text-xl font-semibold text-[#304638]">Creá tu primer espacio</h1><p className="mt-2 text-sm leading-6 text-[#839087]">Cada espacio representa un negocio y mantiene su propia configuración.</p><Link href="/app?section=settings" className="mt-5 inline-flex rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white">Empezar</Link></div>;
+  return <div className="mx-auto max-w-xl rounded-2xl border border-[#e5ebe7] bg-white p-8">
+    <div className="text-center"><span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Store size={22}/></span><h1 className="mt-4 text-xl font-semibold text-[#304638]">Creá tu primer espacio</h1><p className="mt-2 text-sm leading-6 text-[#839087]">Cada espacio representa un negocio y mantiene su propia configuración. Completá estos datos para empezar.</p></div>
+    <form action={createBusiness} className="mt-7 space-y-4">
+      <label className="block text-xs font-semibold text-[#52645a]">Nombre del negocio<input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi comercio" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+      <label className="block text-xs font-semibold text-[#52645a]">Rubro<select name="industry" required defaultValue="" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal"><option value="" disabled>Seleccioná un rubro</option>{Object.entries(industries).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
+      <button className="w-full rounded-xl bg-[#176b4f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#125b42]">Crear mi espacio</button>
+    </form>
+  </div>;
 }
 
 function EmptyModules() {
