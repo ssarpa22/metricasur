@@ -14,6 +14,7 @@ import {
   createBusiness, setBusinessModuleEnabled, signOut, switchBusiness, updateProfile,
 } from "./actions";
 import { DeleteBusinessForm } from "./delete-business-form";
+import { ModuleWorkspace } from "./module-workspace";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
 type Props = {
@@ -26,7 +27,8 @@ type Props = {
   activeIndustry: Industry;
   enabledModules: Record<string, boolean>;
   section: string;
-  notices: { error?: string; created?: string; profile?: string; modules?: string; deleted?: string };
+  records: { id: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string }[];
+  notices: { error?: string; created?: string; profile?: string; modules?: string; deleted?: string; saved?: string; deletedRecord?: string };
 };
 
 const navGroups = [
@@ -170,14 +172,14 @@ export function AppShell(props: Props) {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="hidden rounded-full bg-[#edf5f0] px-3 py-1.5 text-xs font-medium text-[#347253] sm:inline-flex">{industry.label}</span>
-            <button className="relative rounded-xl p-2.5 text-[#748279] hover:bg-[#f2f5f3]" aria-label="Notificaciones"><Bell size={18}/><span className="absolute right-2 top-2 size-1.5 rounded-full bg-[#d59b43]"/></button>
+            <Link href="/app?section=reports" className="rounded-xl p-2.5 text-[#748279] hover:bg-[#f2f5f3]" aria-label="Ir a informes" title="Informes"><Bell size={18}/></Link>
             <span className="flex size-9 items-center justify-center rounded-full bg-[#eaf2ed] text-sm font-bold text-[#176b4f]">{props.firstName.slice(0,1).toUpperCase()}</span>
           </div>
         </header>
 
         <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-7 sm:py-9 lg:px-9">
           {props.notices.error && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{props.notices.error}</p>}
-          {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted) && <p role="status" className="mb-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : "El espacio de trabajo se eliminó correctamente."}</p>}
+          {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
 
           {!active ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
             <Dashboard firstName={props.firstName} business={active} industry={industry} modules={enabledModuleList.length}/>
@@ -188,7 +190,7 @@ export function AppShell(props: Props) {
           ) : props.section === "reports" ? (
             <ReportsView/>
           ) : moduleCatalog.some((module) => module.slug === props.section) ? (
-            <ModuleView slug={props.section} enabled={props.enabledModules[props.section] ?? false}/>
+            <ModuleWorkspace businessId={active.id} slug={props.section} name={moduleCatalog.find((module) => module.slug === props.section)?.name ?? "Módulo"} description={moduleCatalog.find((module) => module.slug === props.section)?.description ?? ""} records={props.records} enabled={props.enabledModules[props.section] ?? false}/>
           ) : (
             <ModuleCollection title={page.title} description={page.description} modules={currentModules}/>
           )}
@@ -251,13 +253,6 @@ function ModuleCollection({ title, description, modules }: { title: string; desc
   return <div className="space-y-6"><div><h1 className="text-2xl font-semibold tracking-tight text-[#263b30]">{title}</h1><p className="mt-2 text-sm text-[#7d8a82]">{description}</p></div>
     {modules.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{modules.map((module) => { const Icon = moduleIcons[module.slug] ?? Package; return <Link key={module.slug} href={`/app?section=${module.slug}`} className="group rounded-2xl border border-[#e5ebe7] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#c8dbce] hover:shadow-sm"><div className="flex items-center justify-between"><span className="flex size-10 items-center justify-center rounded-xl bg-[#edf5f0] text-[#397552]"><Icon size={19}/></span><ArrowUpRight size={17} className="text-[#a0aaa3] group-hover:text-[#28734f]"/></div><h2 className="mt-4 text-sm font-semibold text-[#354a3b]">{module.name}</h2><p className="mt-1 text-xs leading-5 text-[#839087]">{module.description}</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#397552]">Ver módulo <ArrowRight size={13}/></span></Link>; })}</div> : <EmptyModules/>}
   </div>;
-}
-
-function ModuleView({ slug, enabled }: { slug: string; enabled: boolean }) {
-  const moduleItem = moduleCatalog.find((item) => item.slug === slug);
-  if (!moduleItem) return <EmptyModules/>;
-  const Icon = moduleIcons[moduleItem.slug] ?? Package;
-  return <div className="mx-auto max-w-3xl"><Link href="/app?section=operations" className="text-xs font-semibold text-[#397552] hover:underline">← Volver a operaciones</Link><div className="mt-5 rounded-2xl border border-[#e5ebe7] bg-white p-6 sm:p-9"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Icon size={23}/></span><div className="mt-5 flex flex-wrap items-center gap-2"><h1 className="text-2xl font-semibold text-[#263b30]">{moduleItem.name}</h1><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${enabled ? "bg-[#eaf5ee] text-[#347253]" : "bg-[#f2f3f2] text-[#77827b]"}`}>{enabled ? "Activo" : "Inactivo"}</span></div><p className="mt-2 text-sm leading-6 text-[#7d8a82]">{moduleItem.description}</p><div className="mt-7 rounded-xl border border-dashed border-[#dce6df] bg-[#fafcfb] p-5"><p className="text-sm font-semibold text-[#405748]">Estamos preparando esta herramienta</p><p className="mt-1 text-sm leading-6 text-[#839087]">El módulo ya forma parte de la estructura de tu negocio. Su interfaz operativa se incorporará en una próxima etapa; todavía no registra ni modifica datos.</p><Link href="/app?section=settings" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#397552] hover:underline">Administrar módulos <ArrowRight size={15}/></Link></div></div></div>;
 }
 
 function ReportsView() {

@@ -1,0 +1,66 @@
+"use client";
+
+import { useState } from "react";
+import { Plus, Search, X, CalendarDays, Package, Trash2 } from "lucide-react";
+import { createBusinessRecord, deleteBusinessRecord, updateBusinessRecordStatus } from "./record-actions";
+
+type RecordItem = {
+  id: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled";
+  amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string;
+};
+type Props = { businessId: string; slug: string; name: string; description: string; records: RecordItem[]; enabled: boolean };
+
+const statusLabels = { open: "Pendiente", in_progress: "En curso", completed: "Completado", cancelled: "Cancelado" };
+const statusStyles = { open: "bg-amber-50 text-amber-700", in_progress: "bg-blue-50 text-blue-700", completed: "bg-emerald-50 text-emerald-700", cancelled: "bg-slate-100 text-slate-500" };
+
+export function ModuleWorkspace({ businessId, slug, name, description, records, enabled }: Props) {
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const filtered = records.filter((record) => [record.title, record.description, record.category, record.reference].join(" ").toLowerCase().includes(search.toLowerCase()));
+  const total = records.reduce((sum, record) => sum + (record.amount ?? 0), 0);
+  const open = records.filter((record) => record.status === "open" || record.status === "in_progress").length;
+  const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
+  if (!enabled) return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-8"><h1 className="text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-2 text-sm text-[#7d8a82]">Este módulo está desactivado.</p><a href="/app?section=settings" className="mt-4 inline-block text-sm font-semibold text-[#176b4f]">Habilitar desde Configuración →</a></div>;
+
+  return <div className="space-y-6">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Espacio de trabajo</p><h1 className="mt-2 text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-1 text-sm text-[#7d8a82]">{description}</p></div>
+      <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#105c45]"><Plus size={17}/>{showForm ? "Cerrar formulario" : "Nuevo registro"}</button>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-xl border border-[#e5ebe7] bg-white p-4"><p className="text-xs text-[#89958e]">Registros</p><p className="mt-2 text-2xl font-semibold text-[#2d4235]">{records.length}</p></div>
+      <div className="rounded-xl border border-[#e5ebe7] bg-white p-4"><p className="text-xs text-[#89958e]">Pendientes / en curso</p><p className="mt-2 text-2xl font-semibold text-[#2d4235]">{open}</p></div>
+      <div className="rounded-xl border border-[#e5ebe7] bg-white p-4"><p className="text-xs text-[#89958e]">Importes registrados</p><p className="mt-2 truncate text-xl font-semibold text-[#2d4235]">{money.format(total)}</p></div>
+    </div>
+    {showForm && <section className="rounded-2xl border border-[#cfe0d4] bg-white p-5 sm:p-7">
+      <div className="mb-5 flex items-center justify-between"><div><h2 className="text-base font-semibold text-[#304638]">Crear registro</h2><p className="mt-1 text-xs text-[#89958e]">Guardado en el espacio de trabajo actual.</p></div><button onClick={() => setShowForm(false)} aria-label="Cerrar" className="rounded-lg p-2 text-[#7c8981] hover:bg-[#f3f6f4]"><X size={17}/></button></div>
+      <form action={createBusinessRecord} className="grid gap-4 sm:grid-cols-2">
+        <input type="hidden" name="businessId" value={businessId}/><input type="hidden" name="moduleSlug" value={slug}/>
+        <label className="text-xs font-semibold text-[#52645a] sm:col-span-2">Nombre / concepto *<input name="title" required maxLength={160} placeholder={placeholderFor(slug)} className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Categoría / tipo<input name="category" maxLength={80} placeholder="Ej. Servicio, producto, prioridad..." className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Referencia / contacto<input name="reference" maxLength={120} placeholder="Cliente, proveedor, código..." className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Importe (ARS)<input name="amount" type="number" min="0" step="0.01" placeholder="0,00" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Cantidad / horas<input name="quantity" type="number" min="0" step="0.001" placeholder="0" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Fecha objetivo<input name="dueDate" type="date" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <label className="text-xs font-semibold text-[#52645a]">Estado<select name="status" defaultValue="open" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal"><option value="open">Pendiente</option><option value="in_progress">En curso</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></label>
+        <label className="text-xs font-semibold text-[#52645a] sm:col-span-2">Descripción / notas<textarea name="description" maxLength={4000} rows={3} placeholder="Detalles adicionales..." className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
+        <div className="flex justify-end gap-2 sm:col-span-2"><button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-[#dce5e0] px-4 py-2.5 text-sm font-semibold text-[#52645a]">Cancelar</button><button className="rounded-xl bg-[#176b4f] px-5 py-2.5 text-sm font-semibold text-white">Guardar registro</button></div>
+      </form>
+    </section>}
+    <section className="overflow-hidden rounded-2xl border border-[#e5ebe7] bg-white">
+      <div className="flex flex-col gap-3 border-b border-[#edf0ee] p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-sm font-semibold text-[#304638]">Tus registros</h2><p className="mt-1 text-xs text-[#89958e]">Los datos se guardan de forma privada en este negocio.</p></div><label className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89958e]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar..." className="w-full rounded-xl border border-[#e5ebe7] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#397552] sm:w-64"/></label></div>
+      {filtered.length ? <div className="divide-y divide-[#edf0ee]">{filtered.map((record) => <article key={record.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-semibold text-[#354a3b]">{record.title}</h3><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${statusStyles[record.status]}`}>{statusLabels[record.status]}</span>{record.category && <span className="rounded-full bg-[#f3f6f4] px-2 py-1 text-[10px] text-[#718078]">{record.category}</span>}</div><p className="mt-1 line-clamp-2 text-xs leading-5 text-[#89958e]">{record.description || record.reference || "Sin descripción adicional"}</p><div className="mt-2 flex flex-wrap gap-3 text-[11px] text-[#87948c]">{record.due_date && <span className="inline-flex items-center gap-1"><CalendarDays size={12}/>{new Date(record.due_date + "T12:00:00").toLocaleDateString("es-AR")}</span>}{record.quantity !== null && <span><Package size={12} className="mr-1 inline"/>{record.quantity}</span>}{record.amount !== null && <span className="font-semibold text-[#397552]">{money.format(record.amount)}</span>}{record.reference && <span>Ref: {record.reference}</span>}</div></div><div className="flex shrink-0 items-center gap-2"><form action={updateBusinessRecordStatus} className="flex items-center gap-1"><input type="hidden" name="businessId" value={businessId}/><input type="hidden" name="moduleSlug" value={slug}/><input type="hidden" name="recordId" value={record.id}/><select name="status" defaultValue={record.status} aria-label="Cambiar estado" className="max-w-32 rounded-lg border border-[#e5ebe7] bg-white px-2 py-2 text-xs text-[#52645a]">{Object.entries(statusLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select><button className="rounded-lg border border-[#e5ebe7] px-2.5 py-2 text-xs font-semibold text-[#52645a] hover:border-[#9dbba8]">Actualizar</button></form><form action={deleteBusinessRecord} onSubmit={(event) => { if (!window.confirm("¿Eliminar este registro? Esta acción no se puede deshacer.")) event.preventDefault(); }}><input type="hidden" name="businessId" value={businessId}/><input type="hidden" name="moduleSlug" value={slug}/><input type="hidden" name="recordId" value={record.id}/><button aria-label={`Eliminar ${record.title}`} title="Eliminar" className="rounded-lg p-2 text-[#a0aaa3] hover:bg-red-50 hover:text-red-600"><Trash2 size={15}/></button></form></div></article>)}</div> : <div className="px-5 py-14 text-center"><span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[#f0f5f1] text-[#7e9b88]"><Package size={20}/></span><p className="mt-3 text-sm font-semibold text-[#46594d]">{search ? "No encontramos coincidencias" : "Todavía no hay registros"}</p><p className="mt-1 text-xs text-[#89958e]">{search ? "Probá con otro término." : "Creá el primero para empezar a darle vida a este módulo."}</p>{!search && <button onClick={() => setShowForm(true)} className="mt-4 rounded-xl bg-[#176b4f] px-4 py-2 text-xs font-semibold text-white">Crear primer registro</button>}</div>}
+    </section>
+  </div>;
+}
+
+function placeholderFor(slug: string) {
+  const examples: Record<string,string> = {
+    sales: "Ej. Venta mostrador #001", inventory: "Ej. Nalga / producto", purchasing: "Ej. Compra de mercadería",
+    suppliers: "Ej. Distribuidora Central", customers: "Ej. Juan Pérez", appointments: "Ej. Turno - María",
+    projects: "Ej. Rediseño de sitio web", time_tracking: "Ej. Desarrollo - 2 horas", proposals: "Ej. Presupuesto sitio web",
+    services: "Ej. Corte y brushing", waste_tracking: "Ej. Merma de carne", menu_costing: "Ej. Preparación / receta",
+    production: "Ej. Lote de producción", work_orders: "Ej. Reparación / obra", tasks: "Ej. Revisar pedidos",
+  };
+  return examples[slug] ?? "Nuevo registro";
+}
