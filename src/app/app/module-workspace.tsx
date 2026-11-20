@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, Search, X, CalendarDays, Package, Trash2 } from "lucide-react";
 import { createBusinessRecord, deleteBusinessRecord, updateBusinessRecordStatus } from "./record-actions";
 
@@ -20,7 +21,7 @@ export function ModuleWorkspace({ businessId, slug, name, description, records, 
   const total = records.reduce((sum, record) => sum + (record.amount ?? 0), 0);
   const open = records.filter((record) => record.status === "open" || record.status === "in_progress").length;
   const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
-  if (!enabled) return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-8"><h1 className="text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-2 text-sm text-[#7d8a82]">Este módulo está desactivado.</p><a href="/app?section=settings" className="mt-4 inline-block text-sm font-semibold text-[#176b4f]">Habilitar desde Configuración →</a></div>;
+  if (!enabled) return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-8"><h1 className="text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-2 text-sm text-[#7d8a82]">Este módulo está desactivado.</p><Link href="/app?section=settings" className="mt-4 inline-block text-sm font-semibold text-[#176b4f]">Habilitar desde Configuración →</Link></div>;
 
   return <div className="space-y-6">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
