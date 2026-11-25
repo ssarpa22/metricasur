@@ -4,13 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
-  CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList,
+  CalendarDays, Check, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, ClipboardList,
   CreditCard, LayoutDashboard, LogOut, Menu, Package, Plus, Settings2, ShoppingBag,
-  Sparkles, Store, Users, Wallet, X,
+  Sparkles, Store, Users, Wallet, X, Clock,
 } from "lucide-react";
 import { industries, type Industry } from "@/lib/industries";
 import { moduleCatalog } from "@/lib/modules";
-import { getOverdueRecords, getPendingRecords, getTodayInBuenosAires, serializeCsv } from "@/lib/record-insights";
+import { subscriptionPlans, type SubscriptionPlan } from "@/lib/subscriptions";
+import { getOverdueRecords, getPendingRecords, getTodayInBuenosAires, serializeCsv, getCompletionRate, getOperationalAmountBreakdown } from "@/lib/record-insights";
 import {
   createBusiness, restoreRecommendedBusinessModules, setBusinessModuleEnabled, signOut, switchBusiness, updateProfile,
 } from "./actions";
@@ -18,7 +19,7 @@ import { DeleteBusinessForm } from "./delete-business-form";
 import { ModuleWorkspace } from "./module-workspace";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
-type BusinessRecord = { id: string; module_slug: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string };
+type BusinessRecord = { id: string; module_slug: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; metadata: Record<string, unknown>; created_at: string };
 type Props = {
   firstName: string;
   fullName: string;
@@ -28,6 +29,15 @@ type Props = {
   activeRole: string | null;
   activeIndustry: Industry;
   enabledModules: Record<string, boolean>;
+  subscription: {
+    plan: SubscriptionPlan;
+    status: string;
+    startedAt: string;
+    renewsAt: string | null;
+    freePlanGrandfathered: boolean;
+    monthlyRecords: number;
+    businessCount: number;
+  };
   moduleSetupMissing: boolean;
   section: string;
   records: BusinessRecord[];
@@ -54,6 +64,10 @@ const sectionTitles: Record<string, { title: string; description: string }> = {
   assistant: { title: "Asistente", description: "Un espacio para consultar y, más adelante, delegar tareas." },
   settings: { title: "Configuración", description: "Administrá tu espacio, tus módulos y tu perfil." },
 };
+
+sectionTitles.subscription = { title: "SuscripciÃ³n", description: "ConocÃ© tu plan, uso y opciones de crecimiento." };
+
+sectionTitles.subscription = { title: "SuscripciÃ³n", description: "ConocÃ© tu plan, uso y opciones de crecimiento." };
 
 const moduleIcons: Record<string, typeof ShoppingBag> = {
   sales: ShoppingBag, customers: Users, services: BriefcaseBusiness, appointments: CalendarDays,
@@ -141,6 +155,7 @@ export function AppShell(props: Props) {
           {!enabledModuleList.length && !collapsed && <p className="px-3 py-2 text-xs text-[#9aa59e]">Todavía no hay módulos activos.</p>}
         </div>
         <div className="border-t border-[#edf0ee] pt-4">
+          <NavLink id="subscription" label="SuscripciÃ³n" icon={CreditCard} active={props.section === "subscription"} onClick={() => setMobileOpen(false)}/>
           <NavLink id="assistant" label="Asistente IA" icon={Sparkles} active={props.section === "assistant"} onClick={() => setMobileOpen(false)}/>
           <NavLink id="settings" label="Configuración" icon={Settings2} active={props.section === "settings"} onClick={() => setMobileOpen(false)}/>
         </div>
@@ -193,9 +208,11 @@ export function AppShell(props: Props) {
           ) : props.section === "assistant" ? (
             <AssistantView records={props.allRecords} industry={industry}/>
           ) : props.section === "reports" ? (
-            <ReportsView records={props.allRecords} industry={industry}/>
+            <ReportsView records={props.allRecords} industry={industry} plan={props.subscription.plan}/>
+          ) : props.section === "subscription" ? (
+            <SubscriptionView subscription={props.subscription}/>
           ) : moduleCatalog.some((module) => module.slug === props.section) ? (
-            <ModuleWorkspace businessId={active.id} slug={props.section} name={moduleCatalog.find((module) => module.slug === props.section)?.name ?? "Módulo"} description={moduleCatalog.find((module) => module.slug === props.section)?.description ?? ""} records={props.records} enabled={props.enabledModules[props.section] ?? false}/>
+            <ModuleWorkspace businessId={active.id} slug={props.section} name={moduleCatalog.find((module) => module.slug === props.section)?.name ?? "Módulo"} description={moduleCatalog.find((module) => module.slug === props.section)?.description ?? ""} records={props.records} enabled={props.enabledModules[props.section] ?? false} canExport={props.subscription.plan.canExport}/>
           ) : (
             <ModuleCollection title={page.title} description={page.description} modules={currentModules}/>
           )}
@@ -256,12 +273,16 @@ function ModuleCollection({ title, description, modules }: { title: string; desc
   </div>;
 }
 
-function ReportsView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
+function ReportsView({ records, industry, plan }: { records: BusinessRecord[]; industry: (typeof industries)[Industry]; plan: SubscriptionPlan }) {
   const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
   const totalAmount = records.reduce((sum, r) => sum + (r.amount ?? 0), 0);
   const pending = getPendingRecords(records);
   const overdue = getOverdueRecords(records, getTodayInBuenosAires());
   const byModule = moduleCatalog.map((m) => ({ ...m, count: records.filter((r) => r.module_slug === m.slug).length })).filter((m) => m.count).sort((a,b) => b.count-a.count);
+  const completionRate = getCompletionRate(records.map((r) => ({ status: r.status })));
+  const amountBreakdown = getOperationalAmountBreakdown(records.map((r) => ({ module_slug: r.module_slug, amount: r.amount })));
+  const advancedAnalytics = plan.analytics === "advanced";
+  if (!advancedAnalytics) return <BasicReportsView records={records} industry={industry}/>;
   const exportCsv = () => {
     const header = ["Modulo","Titulo","Estado","Importe ARS","Cantidad","Fecha objetivo","Categoria","Referencia","Creado"];
     const rows = records.map((r) => [moduleCatalog.find((m) => m.slug === r.module_slug)?.name ?? r.module_slug,r.title,r.status,r.amount ?? "",r.quantity ?? "",r.due_date ?? "",r.category,r.reference,r.created_at]);
@@ -270,11 +291,34 @@ function ReportsView({ records, industry }: { records: BusinessRecord[]; industr
     const a = document.createElement("a"); a.href=url; a.download="metricasur-informe.csv"; a.click(); URL.revokeObjectURL(url);
   };
   return <div className="space-y-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Análisis del negocio</p><h1 className="mt-2 text-2xl font-semibold text-[#263b30]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[#7d8a82]">Estadísticas calculadas a partir de tus registros guardados.</p></div><button onClick={exportCsv} disabled={!records.length} className="rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Exportar CSV</button></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={Activity} label="Pendientes" value={String(pending.length)} note="Abiertos o en curso"/><StatCard icon={CalendarDays} label="Vencidos" value={String(overdue.length)} note="Requieren atención"/><StatCard icon={Wallet} label="Importes cargados" value={money.format(totalAmount)} note="Suma de importes registrados"/></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={Activity} label="Pendientes" value={String(pending.length)} note="Abiertos o en curso"/><StatCard icon={CalendarDays} label="Vencidos" value={String(overdue.length)} note="Requieren atención"/><StatCard icon={Wallet} label="Importes cargados" value={money.format(totalAmount)} note="Suma de importes registrados"/>
+  {completionRate !== null ? (
+    <StatCard icon={CheckSquare} label="Tasa de cumplimiento" value={completionRate.toFixed(1) + "%"} note="Completado sobre no cancelados"/>
+  ) : (
+    <StatCard icon={Clock} label="Tasa de cumplimiento" value="N/D" note="No hay registros no cancelados"/>
+  )}</div>
     <div className="grid gap-5 xl:grid-cols-2"><section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Actividad por módulo</h2>{byModule.length ? <div className="mt-4 space-y-4">{byModule.map((m) => <div key={m.slug}><div className="mb-1 flex justify-between text-xs"><span className="font-medium text-[#52645a]">{m.name}</span><span className="text-[#839087]">{m.count}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#edf2ee]"><div className="h-full rounded-full bg-[#39805b]" style={{width:`${Math.max(4,m.count/records.length*100)}%`}}/></div></div>)}</div> : <p className="mt-4 text-sm text-[#89958e]">Todavía no hay datos para analizar. Empezá creando registros en tus módulos.</p>}</section>
     <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Distribución por estado</h2><div className="mt-4 space-y-3">{[["Pendiente",records.filter(r=>r.status==="open").length],["En curso",records.filter(r=>r.status==="in_progress").length],["Completado",records.filter(r=>r.status==="completed").length],["Cancelado",records.filter(r=>r.status==="cancelled").length]].map(([label,count])=><div key={String(label)} className="flex items-center justify-between rounded-lg bg-[#f7faf8] px-3 py-2 text-sm"><span className="text-[#52645a]">{label}</span><strong className="text-[#304638]">{count}</strong></div>)}</div></section></div>
+    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Importes por módulo</h2>{Object.keys(amountBreakdown).length ? <div className="mt-4 divide-y divide-[#edf0ee]">{Object.entries(amountBreakdown).map(([slug, data]) => <div key={slug} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-[#52645a]">{moduleCatalog.find((m) => m.slug === slug)?.name ?? slug}<span className="ml-2 text-xs text-[#89958e]">({data.count} registros)</span></span><span className="text-right"><strong className="block text-[#304638]">{money.format(data.total)}</strong><span className="text-xs text-[#89958e]">Promedio {money.format(data.average)}</span></span></div>)}</div> : <p className="mt-3 text-sm text-[#89958e]">No hay importes cargados para agrupar.</p>}</section>
     <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Próximas fechas y atrasos</h2>{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).length ? <div className="mt-3 divide-y divide-[#edf0ee]">{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).map(r=><div key={r.id} className="flex justify-between gap-3 py-3 text-sm"><span className="min-w-0 truncate text-[#52645a]">{r.title}</span><span className="shrink-0 text-xs text-[#839087]">{new Date((r.due_date??"")+"T12:00:00").toLocaleDateString("es-AR")}</span></div>)}</div> : <p className="mt-3 text-sm text-[#89958e]">No hay fechas pendientes registradas.</p>}</section>
   </div>;
+}
+
+function BasicReportsView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
+  const completed = records.filter((record) => record.status === "completed").length;
+  const pending = getPendingRecords(records).length;
+  const completionRate = getCompletionRate(records.map((record) => ({ status: record.status })));
+  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8]">Resumen operativo</p><h1 className="mt-2 text-2xl font-semibold text-[#F1F5F9]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[#94A3B8]">Métricas esenciales del negocio seleccionado.</p></div><div className="grid gap-4 sm:grid-cols-3"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={CheckSquare} label="Completados" value={String(completed)} note="Registros terminados"/><StatCard icon={Activity} label="Pendientes" value={String(pending)} note="Abiertos o en curso"/></div><section className="rounded-2xl border border-[#263445] bg-[#151E29] p-6"><h2 className="font-semibold text-[#F1F5F9]">Tasa de cumplimiento</h2><p className="mt-3 text-3xl font-semibold text-[#38BDF8]">{completionRate === null ? "N/D" : `${completionRate.toFixed(1)}%`}</p><p className="mt-2 text-sm text-[#94A3B8]">El análisis avanzado y los importes por módulo están disponibles desde Pro.</p></section></div>;
+}
+
+function SubscriptionView({ subscription }: { subscription: Props["subscription"] }) {
+  const current = subscription.plan;
+  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8]">MétricaSur Plans</p><h1 className="mt-2 text-2xl font-semibold text-[#F1F5F9]">Tu suscripción</h1><p className="mt-1 text-sm text-[#94A3B8]">Capacidad clara para que sepas qué incluye tu plan y cuándo conviene crecer.</p></div><section className="rounded-2xl border border-[#263445] bg-[#151E29] p-6"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start"><div><p className="text-sm text-[#94A3B8]">Plan actual</p><h2 className="mt-2 text-3xl font-semibold text-[#F1F5F9]">{current.name}</h2><p className="mt-2 text-sm text-[#94A3B8]">{current.description}</p></div><div className="text-left sm:text-right"><p className="text-3xl font-semibold text-[#38BDF8]">USD {current.priceUsdMonthly}<span className="text-sm font-normal text-[#94A3B8]">/mes</span></p><span className="mt-2 inline-flex rounded-full bg-[#123047] px-3 py-1 text-xs font-semibold text-[#7DD3FC]">{subscription.status === "active" ? "Activo" : subscription.status}</span></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><UsageMeter label="Registros este mes" current={subscription.monthlyRecords} limit={current.maxMonthlyRecords}/><UsageMeter label="Negocios" current={subscription.businessCount} limit={current.maxBusinesses}/></div></section><div className="grid gap-4 lg:grid-cols-3">{Object.values(subscriptionPlans).map((plan) => <article key={plan.id} className={`rounded-2xl border p-5 ${plan.id === current.id ? "border-[#38BDF8] bg-[#122331]" : "border-[#263445] bg-[#151E29]"}`}><div className="flex items-center justify-between"><h2 className="font-semibold text-[#F1F5F9]">{plan.name}</h2>{plan.id === current.id && <span className="rounded-full bg-[#123047] px-2 py-1 text-[10px] font-semibold text-[#7DD3FC]">Actual</span>}</div><p className="mt-3 text-2xl font-semibold text-[#F1F5F9]">USD {plan.priceUsdMonthly}<span className="text-xs font-normal text-[#94A3B8]">/mes</span></p><ul className="mt-5 space-y-2 text-sm text-[#94A3B8]">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#22C55E]"/>{feature}</li>)}</ul></article>)}</div><p className="text-xs text-[#64748B]">Los pagos todavía no están conectados. Los precios y límites se administran desde la configuración central de planes.</p></div>;
+}
+
+function UsageMeter({ label, current, limit }: { label: string; current: number; limit: number | null }) {
+  const percentage = limit === null ? 0 : Math.min(100, (current / limit) * 100);
+  return <div className="rounded-xl border border-[#263445] bg-[#111820] p-4"><div className="flex justify-between gap-3 text-sm"><span className="text-[#94A3B8]">{label}</span><span className="font-semibold text-[#F1F5F9]">{current} / {limit ?? "∞"}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#263445]"><div className="h-full rounded-full bg-[#38BDF8]" style={{ width: `${percentage}%` }}/></div></div>;
 }
 
 function AssistantView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {

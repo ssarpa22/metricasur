@@ -50,20 +50,19 @@ test.describe("Empresas de MétricaSur", () => {
       page.getByText(businessName, { exact: true }).first()
     ).toBeVisible();
 
-    // Verificar cambio entre empresas
-    const sidebar = page.locator("aside").first();
+    // Verificar cambio entre empresas desde Configuracion
+    await page.goto("/app?section=settings");
 
-    // Volver a la empresa original
-    await sidebar.getByRole("button").filter({ hasText: businessName }).first().click();
-    await page.getByRole("button", { name: originalBusinessName!, exact: true }).click();
-
+    const originalBusinessRow = page.getByText(originalBusinessName!, { exact: true }).last().locator("..");
+    await originalBusinessRow.getByRole("button", { name: "Cambiar" }).click();
     await expect(page.locator("header p").nth(1)).toHaveText(originalBusinessName!);
 
-    // Volver a la empresa recién creada
-    await sidebar.getByRole("button").filter({ hasText: originalBusinessName! }).first().click();
-    await page.getByRole("button", { name: businessName, exact: true }).click();
-
+    // Volver a la empresa recien creada
+    await page.goto("/app?section=settings");
+    const newBusinessRow = page.getByText(businessName, { exact: true }).last().locator("..");
+    await newBusinessRow.getByRole("button", { name: "Cambiar" }).click();
     await expect(page.locator("header p").nth(1)).toHaveText(businessName);
+
     // Verificar aislamiento de módulos entre empresas
     await page.goto("/app?section=settings");
 
@@ -78,8 +77,8 @@ test.describe("Empresas de MétricaSur", () => {
 
     // Volver a la empresa original
     await page.goto("/app?section=settings");
-    const originalBusinessRow = page.getByText(originalBusinessName!, { exact: true }).last().locator("..");
-    await originalBusinessRow.getByRole("button", { name: "Cambiar" }).click();
+    const originalBusinessRowAfterToggle = page.getByText(originalBusinessName!, { exact: true }).last().locator("..");
+    await originalBusinessRowAfterToggle.getByRole("button", { name: "Cambiar" }).click();
 
     // Confirmar que realmente cambiamos a la empresa original
     await expect(page.locator("header p").nth(1)).toHaveText(originalBusinessName!);

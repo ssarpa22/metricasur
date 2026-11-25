@@ -1,4 +1,4 @@
-
+﻿
 -- Cross-tenant isolation tests for operational records.
 -- Run with: npx supabase test db
 
@@ -10,7 +10,7 @@ select extensions.plan(6);
 
 -- Two isolated test users.
 insert into auth.users (
-  id, aud, role, email, encrypted_password, email_confirmed_at,
+  id, aud, role, email, encrypted_password, confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 values

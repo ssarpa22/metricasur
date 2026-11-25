@@ -1,4 +1,4 @@
--- Regression tests for owner-only business deletion and cascading cleanup.
+﻿-- Regression tests for owner-only business deletion and cascading cleanup.
 -- Run with: npx supabase test db
 
 create extension if not exists pgtap with schema extensions;
@@ -7,7 +7,7 @@ begin;
 select extensions.plan(5);
 
 insert into auth.users (
-  id, aud, role, email, encrypted_password, email_confirmed_at,
+  id, aud, role, email, encrypted_password, confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
 )
 values

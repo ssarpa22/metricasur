@@ -3,12 +3,22 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { moduleSlugSchema } from "@/lib/modules";
+import { isValidDateOnly } from "@/lib/date-validation";
+import { validateCustomerMetadata } from "@/lib/customer-metadata";
+import { getBusinessSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function fail(slug: string, message: string): never {
   redirect(`/app?section=${encodeURIComponent(slug)}&error=${encodeURIComponent(message)}`);
 }
 function value(data: FormData, key: string) { return String(data.get(key) ?? "").trim(); }
+
+function readCustomerMetadata(data: FormData, slug: string) {
+  if (slug !== "customers") return undefined;
+  const result = validateCustomerMetadata(data);
+  if (!result.success) fail(slug, result.message);
+  return result.metadata;
+}
 
 async function authorize(businessId: string, slug: string) {
   if (!uuid.test(businessId)) fail(slug, "El espacio seleccionado no es válido.");
@@ -43,11 +53,20 @@ export async function createBusinessRecord(formData: FormData) {
   const amount = amountRaw ? Number(amountRaw) : null;
   const quantity = quantityRaw ? Number(quantityRaw) : null;
   if ((amount !== null && (!Number.isFinite(amount) || amount < 0)) || (quantity !== null && (!Number.isFinite(quantity) || quantity < 0))) fail(slug, "Importe o cantidad no válidos.");
-  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) fail(slug, "La fecha no es válida.");
+  if (dueDate && !isValidDateOnly(dueDate)) fail(slug, "La fecha no es válida.");
+  const metadata = readCustomerMetadata(formData, slug);
   const { supabase, user } = await authorize(businessId, slug);
+  const subscription = await getBusinessSubscription(supabase, businessId);
+  if (subscription.error || !subscription.data) fail(slug, "No pudimos verificar la suscripción de este negocio.");
+  const usage = await getMonthlyRecordUsage(supabase, businessId);
+  if (usage.error) fail(slug, "No pudimos verificar el uso mensual de registros.");
+  if (subscription.data.plan.maxMonthlyRecords !== null && usage.count >= subscription.data.plan.maxMonthlyRecords) {
+    fail(slug, `Alcanzaste el límite mensual de ${subscription.data.plan.maxMonthlyRecords} registros de tu plan ${subscription.data.plan.name}. Revisá Suscripción para ampliar el límite.`);
+  }
   const { error } = await supabase.from("business_records").insert({
     business_id: businessId, module_slug: slug, title, description, category, reference,
     status, amount, quantity, due_date: dueDate || null, created_by: user.id,
+    ...(metadata ? { metadata } : {}),
   });
   if (error) fail(slug, "No se pudo guardar el registro. Revisá los datos e intentá nuevamente.");
   redirect(`/app?section=${encodeURIComponent(slug)}&saved=1`);
@@ -96,10 +115,12 @@ export async function updateBusinessRecord(formData: FormData) {
   const amount = amountRaw ? Number(amountRaw) : null;
   const quantity = quantityRaw ? Number(quantityRaw) : null;
   if ((amount !== null && (!Number.isFinite(amount) || amount < 0)) || (quantity !== null && (!Number.isFinite(quantity) || quantity < 0))) fail(slug, "Importe o cantidad no válidos.");
-  if (dueDate && !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) fail(slug, "La fecha no es válida.");
+  if (dueDate && !isValidDateOnly(dueDate)) fail(slug, "La fecha no es válida.");
+  const metadata = readCustomerMetadata(formData, slug);
   const { supabase } = await authorize(businessId, slug);
   const { error } = await supabase.from("business_records").update({
     title, description, category, reference, status, amount, quantity, due_date: dueDate || null,
+    ...(metadata ? { metadata } : {}),
   }).eq("id", recordId).eq("business_id", businessId).eq("module_slug", slug);
   if (error) fail(slug, "No se pudieron guardar los cambios.");
   redirect(`/app?section=${encodeURIComponent(slug)}&saved=1`);

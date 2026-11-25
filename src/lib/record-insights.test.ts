@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getOverdueRecords, getPendingRecords, getTodayInBuenosAires, serializeCsv } from "./record-insights";
+import { getOverdueRecords, getPendingRecords, getTodayInBuenosAires, serializeCsv, getCompletionRate, getOperationalAmountBreakdown } from "./record-insights";
 
 const records = [
   { id: "old", status: "open" as const, due_date: "2026-11-22" },
@@ -27,5 +27,23 @@ describe("record insights", () => {
     expect(serializeCsv([["=SUM(A1:A2)", "texto, con coma", "dijo \"hola\"", -12]])).toBe(
       "\"'=SUM(A1:A2)\",\"texto, con coma\",\"dijo \"\"hola\"\"\",\"-12\"",
     );
+  });
+
+  it("calculates completion excluding cancelled records", () => {
+    expect(getCompletionRate([
+      { status: "completed" }, { status: "open" }, { status: "cancelled" },
+    ])).toBe(50);
+    expect(getCompletionRate([{ status: "cancelled" }])).toBeNull();
+  });
+
+  it("groups amounts by module and treats null as zero", () => {
+    expect(getOperationalAmountBreakdown([
+      { module_slug: "sales", amount: 100 },
+      { module_slug: "sales", amount: null },
+      { module_slug: "inventory", amount: 50 },
+    ])).toEqual({
+      sales: { total: 100, count: 2, average: 50 },
+      inventory: { total: 50, count: 1, average: 50 },
+    });
   });
 });

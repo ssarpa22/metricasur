@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isFreeRegistrationEnabled } from "@/lib/subscription-runtime";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -23,6 +24,10 @@ export async function signUp(formData: FormData) {
 
   if (fullName.length < 2 || !email || password.length < 8) {
     redirect("/login?error=Ingres%C3%A1%20tu%20nombre%2C%20un%20email%20v%C3%A1lido%20y%20una%20contrase%C3%B1a%20de%208%20caracteres%20o%20m%C3%A1s");
+  }
+
+  if (!isFreeRegistrationEnabled()) {
+    redirect("/login?error=El registro gratuito no está disponible para nuevas cuentas.");
   }
 
   const supabase = await createSupabaseServerClient();
