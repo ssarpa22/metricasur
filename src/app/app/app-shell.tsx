@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { industries, type Industry } from "@/lib/industries";
 import { moduleCatalog } from "@/lib/modules";
+import { getOverdueRecords, getPendingRecords, getTodayInBuenosAires, serializeCsv } from "@/lib/record-insights";
 import {
   createBusiness, restoreRecommendedBusinessModules, setBusinessModuleEnabled, signOut, switchBusiness, updateProfile,
 } from "./actions";
@@ -258,13 +259,13 @@ function ModuleCollection({ title, description, modules }: { title: string; desc
 function ReportsView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
   const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
   const totalAmount = records.reduce((sum, r) => sum + (r.amount ?? 0), 0);
-  const pending = records.filter((r) => r.status === "open" || r.status === "in_progress");
-  const overdue = records.filter((r) => r.due_date && r.due_date < new Date().toISOString().slice(0,10) && r.status !== "completed" && r.status !== "cancelled");
+  const pending = getPendingRecords(records);
+  const overdue = getOverdueRecords(records, getTodayInBuenosAires());
   const byModule = moduleCatalog.map((m) => ({ ...m, count: records.filter((r) => r.module_slug === m.slug).length })).filter((m) => m.count).sort((a,b) => b.count-a.count);
   const exportCsv = () => {
     const header = ["Modulo","Titulo","Estado","Importe ARS","Cantidad","Fecha objetivo","Categoria","Referencia","Creado"];
     const rows = records.map((r) => [moduleCatalog.find((m) => m.slug === r.module_slug)?.name ?? r.module_slug,r.title,r.status,r.amount ?? "",r.quantity ?? "",r.due_date ?? "",r.category,r.reference,r.created_at]);
-    const csv = [header,...rows].map((row) => row.map((v) => '"' + String(v).replaceAll('"','""') + '"').join(",")).join("\r\n");
+    const csv = serializeCsv([header, ...rows]);
     const url = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
     const a = document.createElement("a"); a.href=url; a.download="metricasur-informe.csv"; a.click(); URL.revokeObjectURL(url);
   };
@@ -282,8 +283,8 @@ function AssistantView({ records, industry }: { records: BusinessRecord[]; indus
   function ask() {
     const q=question.trim().toLowerCase();
     if(!q){setAnswer("Escribí una consulta para que pueda revisar los datos de tu negocio.");return;}
-    const pending=records.filter(r=>r.status==="open"||r.status==="in_progress");
-    const overdue=records.filter(r=>r.due_date && r.due_date<new Date().toISOString().slice(0,10) && r.status!=="completed" && r.status!=="cancelled");
+    const pending=getPendingRecords(records);
+    const overdue=getOverdueRecords(records, getTodayInBuenosAires());
     if(/venc|atras|demor/.test(q)) setAnswer(`Encontré ${overdue.length} registro(s) vencido(s). ${overdue.slice(0,5).map(r=>r.title).join(", ") || "No hay registros vencidos."}`);
     else if(/pendient|abiert|tarea|falta/.test(q)) setAnswer(`Tenés ${pending.length} registro(s) pendiente(s) o en curso. ${pending.slice(0,5).map(r=>r.title).join(", ") || "No hay pendientes."}`);
     else if(/venta|ingres|factur|importe|dinero/.test(q)) setAnswer(`La suma de importes cargados en todos los módulos es ${new Intl.NumberFormat("es-AR",{style:"currency",currency:"ARS"}).format(records.reduce((s,r)=>s+(r.amount??0),0))}. Es una suma de registros, no necesariamente ventas cobradas.`);
