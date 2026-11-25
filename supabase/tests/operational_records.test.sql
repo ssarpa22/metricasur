@@ -27,7 +27,12 @@ reset role;
 set local role anon;
 select set_config('request.jwt.claim.sub','',true);
 select set_config('request.jwt.claims','{"role":"anon"}',true);
-select extensions.throws_ok($ select count(*) from public.business_records $,'42501',null,'anonymous users cannot read operational records');
+select extensions.throws_ok(
+  $$ select count(*) from public.business_records $$,
+  '42501',
+  null,
+  'anonymous users cannot read operational records'
+);
 reset role;
 select * from extensions.finish();
 rollback;
