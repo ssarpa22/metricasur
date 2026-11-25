@@ -21,6 +21,12 @@ test.describe("Empresas de MétricaSur", () => {
     // Ir a configuración
     await page.goto("/app?section=settings");
 
+    const originalBusinessName = (await page.locator("header p").nth(1).textContent())?.trim();
+    const originalSalesButton = page.getByText("Ventas", { exact: true }).locator("..").locator("..").getByRole("button");
+    const originalSalesState = (await originalSalesButton.textContent())?.trim();
+    expect(originalSalesState).toMatch(/^(Activar|Desactivar)$/);
+    expect(originalBusinessName).toBeTruthy();
+
     // Abrir el formulario para crear otra empresa
     await page.getByText("Crear otro espacio").click();
 
@@ -43,5 +49,52 @@ test.describe("Empresas de MétricaSur", () => {
     await expect(
       page.getByText(businessName, { exact: true }).first()
     ).toBeVisible();
+
+    // Verificar cambio entre empresas
+    const sidebar = page.locator("aside").first();
+
+    // Volver a la empresa original
+    await sidebar.getByRole("button").filter({ hasText: businessName }).first().click();
+    await page.getByRole("button", { name: originalBusinessName!, exact: true }).click();
+
+    await expect(page.locator("header p").nth(1)).toHaveText(originalBusinessName!);
+
+    // Volver a la empresa recién creada
+    await sidebar.getByRole("button").filter({ hasText: originalBusinessName! }).first().click();
+    await page.getByRole("button", { name: businessName, exact: true }).click();
+
+    await expect(page.locator("header p").nth(1)).toHaveText(businessName);
+    // Verificar aislamiento de módulos entre empresas
+    await page.goto("/app?section=settings");
+
+    const newSalesButton = page.getByText("Ventas", { exact: true }).locator("..").locator("..").getByRole("button");
+
+    // La empresa retail recién creada debe tener Ventas habilitado
+    await expect(newSalesButton).toHaveText("Desactivar");
+
+    // Desactivar Ventas solamente en la empresa nueva
+    await newSalesButton.click();
+    await expect(page.getByRole("status")).toContainText("La configuración de módulos se actualizó.");
+
+    // Volver a la empresa original
+    await page.goto("/app?section=settings");
+    const originalBusinessRow = page.getByText(originalBusinessName!, { exact: true }).last().locator("..");
+    await originalBusinessRow.getByRole("button", { name: "Cambiar" }).click();
+
+    // Confirmar que realmente cambiamos a la empresa original
+    await expect(page.locator("header p").nth(1)).toHaveText(originalBusinessName!);
+
+    // Su configuración debe permanecer igual
+    await page.goto("/app?section=settings");
+    const originalSalesButtonAfterSwitch = page.getByText("Ventas", { exact: true }).locator("..").locator("..").getByRole("button");
+    await expect(originalSalesButtonAfterSwitch).toHaveText(originalSalesState!);
+
+    // Regresar a la empresa nueva
+    await page.getByText(businessName, { exact: true }).last().locator("..").getByRole("button", { name: "Cambiar" }).click();
+
+    // Ventas debe seguir desactivado en la empresa nueva
+    await page.goto("/app?section=settings");
+    const newSalesButtonAfterSwitch = page.getByText("Ventas", { exact: true }).locator("..").locator("..").getByRole("button");
+    await expect(newSalesButtonAfterSwitch).toHaveText("Activar");
   });
 });
