@@ -5,27 +5,29 @@ import Link from "next/link";
 import { Plus, Search, X, CalendarDays, Package, Trash2 } from "lucide-react";
 import { serializeCsv } from "@/lib/record-insights";
 import { createBusinessRecord, deleteBusinessRecord, updateBusinessRecord, updateBusinessRecordStatus } from "./record-actions";
+import { CustomersWorkspace } from "./customers-workspace";
 
 type RecordItem = {
   id: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled";
-  amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; created_at: string;
+  amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; metadata: Record<string, unknown>; created_at: string;
 };
-type Props = { businessId: string; slug: string; name: string; description: string; records: RecordItem[]; enabled: boolean };
+type Props = { businessId: string; slug: string; name: string; description: string; records: RecordItem[]; enabled: boolean; canExport?: boolean };
 
 const statusLabels = { open: "Pendiente", in_progress: "En curso", completed: "Completado", cancelled: "Cancelado" };
 const statusStyles = { open: "bg-amber-50 text-amber-700", in_progress: "bg-blue-50 text-blue-700", completed: "bg-emerald-50 text-emerald-700", cancelled: "bg-slate-100 text-slate-500" };
 
-export function ModuleWorkspace({ businessId, slug, name, description, records, enabled }: Props) {
+export function ModuleWorkspace({ businessId, slug, name, description, records, enabled, canExport = false }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const filtered = records.filter((record) => [record.title, record.description, record.category, record.reference].join(" ").toLowerCase().includes(search.toLowerCase()) && (statusFilter === "all" || record.status === statusFilter));
+  const filtered = records.filter((record) => [record.title, record.description, record.category, record.reference, JSON.stringify(record.metadata)].join(" ").toLowerCase().includes(search.toLowerCase()) && (statusFilter === "all" || record.status === statusFilter));
   const total = records.reduce((sum, record) => sum + (record.amount ?? 0), 0);
   const open = records.filter((record) => record.status === "open" || record.status === "in_progress").length;
   const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
   if (!enabled) return <div className="mx-auto max-w-3xl rounded-2xl border border-[#e5ebe7] bg-white p-8"><h1 className="text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-2 text-sm text-[#7d8a82]">Este módulo está desactivado.</p><Link href="/app?section=settings" className="mt-4 inline-block text-sm font-semibold text-[#176b4f]">Habilitar desde Configuración →</Link></div>;
+  if (slug === "customers") return <CustomersWorkspace businessId={businessId} name={name} records={records} canExport={canExport} />;
 
-  return <div className="space-y-6">
+  return <div className={`space-y-6 ${canExport ? "" : "plan-no-export"}`}>
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div><p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Espacio de trabajo</p><h1 className="mt-2 text-2xl font-semibold text-[#263b30]">{name}</h1><p className="mt-1 text-sm text-[#7d8a82]">{description}</p></div>
       <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#105c45]"><Plus size={17}/>{showForm ? "Cerrar formulario" : "Nuevo registro"}</button>

@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { industrySchema } from "@/lib/industries";
 import { getRecommendedModules } from "@/lib/modules";
 import { moduleSlugSchema } from "@/lib/modules";
+import { getUserPlanContext } from "@/lib/subscription-server";
 
 const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
 
@@ -23,6 +24,12 @@ export async function createBusiness(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const planContext = await getUserPlanContext(supabase, user.id);
+  if (planContext.error) appError("No pudimos verificar el límite de espacios de tu plan.");
+  if (planContext.businessCount >= planContext.plan.maxBusinesses) {
+    appError(`Tu plan ${planContext.plan.name} permite hasta ${planContext.plan.maxBusinesses} negocio${planContext.plan.maxBusinesses === 1 ? "" : "s"}. Revisá Suscripción para ampliar el límite.`);
+  }
 
   const { data: businessId, error } = await supabase.rpc("create_business", {
     p_name: name,

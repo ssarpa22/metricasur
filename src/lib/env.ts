@@ -10,6 +10,7 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: optionalSecret,
   AI_PROVIDER: optionalSecret,
   AI_API_KEY: optionalSecret,
+  METRICASUR_FREE_REGISTRATION_ENABLED: z.enum(["true", "false"]).optional().default("true"),
 });
 
 export function getServerEnv() {

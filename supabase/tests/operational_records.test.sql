@@ -1,8 +1,8 @@
-create extension if not exists pgtap with schema extensions;
+﻿create extension if not exists pgtap with schema extensions;
 begin;
 select extensions.plan(4);
 insert into auth.users (
- id,aud,role,email,encrypted_password,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+ id,aud,role,email,encrypted_password,confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at
 ) values
  ('60000000-0000-4000-8000-000000000006','authenticated','authenticated','records-owner@example.test','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now()),
  ('70000000-0000-4000-8000-000000000007','authenticated','authenticated','records-outsider@example.test','',now(),'{"provider":"email","providers":["email"]}','{}',now(),now());

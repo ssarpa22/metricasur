@@ -1,3 +1,37 @@
 @import "tailwindcss";
-:root{color-scheme:light;--background:#f7f8fa;--foreground:#17211f;--muted:#687570;--line:#e6ebe8;--surface:#fff;--green:#16785a;--green-dark:#105c45;--green-soft:#e9f4ef}
-*{box-sizing:border-box}html{min-height:100%;background:var(--background)}body{min-height:100vh;margin:0;background:var(--background);color:var(--foreground);font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}::selection{background:#cce9dc;color:#123d2e}
+
+:root {
+  color-scheme: dark;
+  --background: #0b0f14;
+  --background-secondary: #111820;
+  --sidebar: #0d131b;
+  --surface: #151e29;
+  --surface-elevated: #1b2633;
+  --accent: #38bdf8;
+  --accent-secondary: #818cf8;
+  --foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --line: #263445;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
+* { box-sizing: border-box; }
+html { min-height: 100%; background: var(--background); }
+body { min-height: 100vh; margin: 0; background: var(--background); color: var(--foreground); font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: #164e63; color: #f1f5f9; }
+
+/* Existing screens use explicit light utility colors. These compatibility rules
+   keep the redesign permanently dark while the screens migrate to tokens. */
+[class~="bg-white"], [class*="bg-[#f"], [class*="bg-[#e"], [class*="bg-[#d"] { background-color: var(--surface) !important; }
+[class*="border-[#e"], [class*="border-[#d"], [class*="border-[#c"] { border-color: var(--line) !important; }
+[class*="text-[#8"], [class*="text-[#7"], [class*="text-[#6"], [class*="text-[#5"], [class*="text-[#4"] { color: var(--muted) !important; }
+[class*="text-[#1"], [class*="text-[#2"], [class*="text-[#3"] { color: var(--foreground) !important; }
+[class*="bg-[#176b4f]"], [class*="bg-[#16785a]"], [class*="bg-[#19805c]"] { background-color: var(--accent) !important; }
+[class*="text-[#176b4f]"], [class*="text-[#16785a]"] { color: var(--accent) !important; }
+input, select, textarea { background-color: var(--surface) !important; color: var(--foreground); border-color: var(--line); }
+.plan-no-export select + button { display: none !important; }
+::placeholder { color: #64748b; opacity: 1; }
