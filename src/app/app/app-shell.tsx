@@ -84,9 +84,10 @@ function NavLink({ id, label, icon: Icon, active, onClick, collapsed = false }: 
 }) {
   return (
     <Link href={`/app?section=${id}`} onClick={onClick}
+      aria-current={active ? "page" : undefined}
       aria-label={collapsed ? label : undefined}
       title={collapsed ? label : undefined}
-      className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground-secondary)]"}`}>
+      className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground-secondary)]"}`}>
       <Icon size={18} strokeWidth={active ? 2.2 : 1.8}/>
       {!collapsed && <span>{label}</span>}
       {active && <span className={`size-1.5 rounded-full bg-[var(--accent)] ${collapsed ? "absolute right-2 top-1/2 -translate-y-1/2" : "ml-auto"}`}/>} 
@@ -155,7 +156,7 @@ export function AppShell(props: Props) {
             <NavLink key={item.id} {...item} active={props.section === item.id} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>)}</div>
         </div>)}
         <div>
-          <button onClick={() => setModulesExpanded(!modulesExpanded)} aria-label="Módulos activos" title={collapsed ? "Módulos activos" : undefined} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)] hover:text-[var(--muted)] ${collapsed ? "justify-center" : ""}`}>
+          <button onClick={() => setModulesExpanded(!modulesExpanded)} aria-label="Módulos activos" aria-expanded={modulesExpanded} title={collapsed ? "Módulos activos" : undefined} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)] hover:text-[var(--muted)] ${collapsed ? "justify-center" : ""}`}>
             {!collapsed && <><span className="flex-1 text-left">Módulos activos</span><span className="rounded-full bg-[var(--line-light)] px-2 py-0.5 text-[10px]">{activeCount}</span><ChevronDown size={14} className={modulesExpanded ? "rotate-180" : ""}/></>}
             {collapsed && <Package size={17}/>}
           </button>
