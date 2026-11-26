@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { industrySchema, type Industry } from "@/lib/industries";
 import { AppShell } from "./app-shell";
 import { moduleSlugSchema } from "@/lib/modules";
-import { getAccountSubscription, getMonthlyRecordUsage, getUserPlanContext } from "@/lib/subscription-server";
+import { getAccountSubscriptionOverview } from "@/lib/subscription-server";
 import { getSubscriptionPlan } from "@/lib/subscriptions";
 
 type AppPageProps = {
@@ -36,26 +36,30 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   const activeBusiness = businesses.find((business) => business.id === preferredId) ?? businesses[0] ?? null;
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role ?? null;
   const accountOwnerId = activeBusiness?.created_by ?? user.id;
-  const planContext = await getUserPlanContext(supabase, accountOwnerId);
-  const subscriptionResult = activeBusiness
-    ? await getAccountSubscription(supabase, accountOwnerId)
-    : { data: null, error: null };
-  const usageResult = await getMonthlyRecordUsage(supabase, accountOwnerId);
-  const subscription = subscriptionResult.data ?? {
+  const selectedModule = moduleSlugSchema.safeParse(params.section);
+  const [overviewResult, installationsResult, recordsResult] = await Promise.all([
+    getAccountSubscriptionOverview(supabase, accountOwnerId),
+    activeBusiness
+      ? supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
+      : Promise.resolve({ data: [], error: null }),
+    activeBusiness
+      ? supabase.from("business_records").select("id, module_slug, title, description, status, amount, quantity, due_date, category, reference, metadata, created_at").eq("business_id", activeBusiness.id).order("created_at", { ascending: false }).limit(500)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const subscription = overviewResult.data ?? {
     plan: getSubscriptionPlan("free"),
     status: "active",
     started_at: new Date().toISOString(),
     renews_at: null,
     free_plan_grandfathered: false,
+    businessCount: 0,
+    monthlyRecordCount: 0,
   };
-  const { data: installations, error: installationsError } = activeBusiness
-    ? await supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
-    : { data: [], error: null };
+  const installations = installationsResult.data;
+  const installationsError = installationsResult.error;
+  const allRecordRows = recordsResult.data;
+  const recordsError = recordsResult.error;
   const enabledModules = Object.fromEntries((installations ?? []).map((item) => [item.module_slug, item.enabled])) as Record<string, boolean>;
-  const selectedModule = moduleSlugSchema.safeParse(params.section);
-  const { data: allRecordRows, error: recordsError } = activeBusiness
-    ? await supabase.from("business_records").select("id, module_slug, title, description, status, amount, quantity, due_date, category, reference, metadata, created_at").eq("business_id", activeBusiness.id).order("created_at", { ascending: false }).limit(500)
-    : { data: [], error: null };
 
   // Never disguise a failed database request as a genuinely empty workspace.
   if (businessesError) console.error("[MétricaSur] No se pudieron cargar los negocios:", businessesError);
@@ -67,7 +71,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
       ? "No pudimos cargar los módulos de este negocio. Es posible que falte aplicar una migración de Supabase."
       : recordsError
         ? "No pudimos cargar los registros. Es posible que falte aplicar una migración de Supabase."
-        : subscriptionResult.error || usageResult.error || planContext.error
+        : overviewResult.error
           ? "No pudimos cargar el estado de suscripción de tu cuenta. Es posible que falte aplicar la migración de suscripciones."
           : undefined;
   const allRecords = (allRecordRows ?? []).map((record) => ({
@@ -100,8 +104,8 @@ export default async function AppPage({ searchParams }: AppPageProps) {
       startedAt: subscription.started_at,
       renewsAt: subscription.renews_at,
       freePlanGrandfathered: subscription.free_plan_grandfathered,
-      monthlyRecords: usageResult.count,
-      businessCount: planContext.businessCount,
+      monthlyRecords: subscription.monthlyRecordCount,
+      businessCount: subscription.businessCount,
     }}
     moduleSetupMissing={Boolean(activeBusiness && !installationsError && (installations ?? []).length === 0)}
     records={records}
