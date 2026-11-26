@@ -26,6 +26,36 @@ async function getAccountContext(
   return { row: (data?.[0] as SubscriptionContextRow | undefined) ?? null, error: null };
 }
 
+export type AccountSubscriptionOverview = {
+  plan: SubscriptionPlan;
+  status: string;
+  started_at: string;
+  renews_at: string | null;
+  free_plan_grandfathered: boolean;
+  businessCount: number;
+  monthlyRecordCount: number;
+};
+
+export async function getAccountSubscriptionOverview(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ data: AccountSubscriptionOverview | null; error: unknown }> {
+  const { row, error } = await getAccountContext(supabase, userId);
+  if (error || !row) return { data: null, error };
+  return {
+    data: {
+      plan: getSubscriptionPlan(row.plan),
+      status: row.status,
+      started_at: row.started_at,
+      renews_at: row.renews_at,
+      free_plan_grandfathered: row.free_plan_grandfathered,
+      businessCount: row.business_count,
+      monthlyRecordCount: row.monthly_record_count,
+    },
+    error: null,
+  };
+}
+
 export async function getAccountSubscription(
   supabase: SupabaseClient,
   userId: string,

@@ -35,6 +35,14 @@ afterEach(() => {
 });
 
 describe("loadPreferences", () => {
+  it("returns defaults when browser storage access is blocked", () => {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get() { throw new Error("Storage access denied"); },
+    });
+    expect(loadPreferences().theme).toBe("dark");
+  });
+
   it("returns defaults when no stored preferences exist", () => {
     const prefs = loadPreferences();
     expect(prefs.theme).toBe("dark");

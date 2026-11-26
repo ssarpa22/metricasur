@@ -39,9 +39,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
     if (typeof window !== "undefined") {
-      localStorage.setItem("metricasur_theme", next);
-      updatePreferences({ theme: next });
       applyTheme(next);
+      try {
+        window.localStorage.setItem("metricasur_theme", next);
+      } catch {
+        // Theme changes must still apply when browser storage is unavailable.
+      }
+      updatePreferences({ theme: next });
     }
   }, [applyTheme]);
 
