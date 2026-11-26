@@ -94,12 +94,9 @@ function NavLink({ id, label, icon: Icon, active, onClick }: {
 
 export function AppShell(props: Props) {
   const { prefs, setPrefs: updatePrefs } = useDashboardPrefs();
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => setCollapsed(prefs.sidebarCollapsed), [prefs.sidebarCollapsed]);
+  const collapsed = prefs.sidebarCollapsed;
   const toggleSidebar = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    updatePrefs({ sidebarCollapsed: next });
+    updatePrefs({ sidebarCollapsed: !prefs.sidebarCollapsed });
   };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [modulesExpanded, setModulesExpanded] = useState(true);
