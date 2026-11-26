@@ -55,10 +55,18 @@ export function loadPreferences(): UserPreferences {
     const parsed = JSON.parse(raw) as Partial<UserPreferences>;
     return {
       ...getDefaults(),
-      theme: parsed.theme ?? defaultPreferences.theme,
-      layoutDensity: parsed.layoutDensity ?? defaultPreferences.layoutDensity,
-      sidebarCollapsed: parsed.sidebarCollapsed ?? defaultPreferences.sidebarCollapsed,
-      showWelcomeCard: parsed.showWelcomeCard ?? defaultPreferences.showWelcomeCard,
+      theme: parsed.theme === "light" || parsed.theme === "dark" || parsed.theme === "system"
+        ? parsed.theme
+        : defaultPreferences.theme,
+      layoutDensity: parsed.layoutDensity === "compact" || parsed.layoutDensity === "comfortable"
+        ? parsed.layoutDensity
+        : defaultPreferences.layoutDensity,
+      sidebarCollapsed: typeof parsed.sidebarCollapsed === "boolean"
+        ? parsed.sidebarCollapsed
+        : defaultPreferences.sidebarCollapsed,
+      showWelcomeCard: typeof parsed.showWelcomeCard === "boolean"
+        ? parsed.showWelcomeCard
+        : defaultPreferences.showWelcomeCard,
       dashboardWidgets: Array.isArray(parsed.dashboardWidgets) && parsed.dashboardWidgets.length
         ? mergeWidgets(parsed.dashboardWidgets)
         : defaultPreferences.dashboardWidgets,
