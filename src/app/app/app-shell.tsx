@@ -209,6 +209,7 @@ export function AppShell(props: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <CommandPalette modules={enabledModuleList} />
             <span className="hidden rounded-full bg-[var(--accent-light)] px-3 py-1.5 text-xs font-medium text-[var(--accent)] sm:inline-flex">{industry.label}</span>
             {overdue.length > 0 && <Link href="/app?section=reports" className="relative rounded-xl p-2.5 text-[var(--error)] hover:bg-[var(--error-light)]" aria-label="Ver registros vencidos" title="Registros vencidos"><AlertTriangle size={18}/><span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[var(--error)] text-white text-[10px] font-bold">{overdue.length}</span></Link>}
             <Link href="/app?section=reports" className="rounded-xl p-2.5 text-[var(--muted-light)] hover:bg-[var(--surface-hover)]" aria-label="Ir a informes" title="Informes"><Bell size={18}/></Link>
