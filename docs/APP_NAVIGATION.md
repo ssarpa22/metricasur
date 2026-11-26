@@ -27,3 +27,11 @@ MétricaSur uses a compact workspace shell with a responsive sidebar and a dashb
 
 ## Scope
 This navigation refactor does not introduce operational tables or pretend that module functionality already exists. It creates the information architecture and dashboard surface that later modules can populate.
+
+
+## Sidebar and appearance defaults
+
+- New users start with the sidebar expanded; collapsing it switches navigation entries to centered icons with accessible labels and hover tooltips.
+- Expanded navigation displays each icon alongside its text label.
+- The default theme is dark. Explicitly saved theme preferences (light, dark, or system) continue to take precedence.
+- Existing sidebar and appearance preferences are preserved when the defaults change.
