@@ -1,12 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   ArrowRight, BarChart3, BriefcaseBusiness,
   Command, CreditCard, LayoutDashboard, Package, Search, Settings2,
   Store, Users, X,
 } from "lucide-react";
+
+const GETTING_STARTED_EVENT = "metricasur:getting-started-dismissed";
+
+function getGettingStartedDismissed(): boolean {
+  try {
+    return window.localStorage.getItem("metricasur_getting_started_dismissed") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function subscribeToGettingStartedDismissal(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(GETTING_STARTED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(GETTING_STARTED_EVENT, onStoreChange);
+  };
+}
 
 type ModuleItem = { slug: string; name: string; description: string };
 
@@ -29,6 +48,7 @@ export function CommandPalette({ modules }: { modules: ModuleItem[] }) {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setQuery("");
         setOpen((current) => !current);
       }
       if (event.key === "Escape") setOpen(false);
@@ -38,10 +58,7 @@ export function CommandPalette({ modules }: { modules: ModuleItem[] }) {
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setQuery("");
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (open) requestAnimationFrame(() => inputRef.current?.focus());
   }, [open]);
 
   const items = useMemo(() => [
@@ -59,7 +76,10 @@ export function CommandPalette({ modules }: { modules: ModuleItem[] }) {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setQuery("");
+          setOpen(true);
+        }}
         className="inline-flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--muted-light)] transition hover:border-[var(--accent-border)] hover:text-[var(--foreground-secondary)]"
         aria-label="Abrir búsqueda rápida"
         title="Búsqueda rápida (Ctrl+K)"
@@ -119,19 +139,13 @@ export function GettingStartedCard({ businessName, recordsCount, enabledModulesC
   recordsCount: number;
   enabledModulesCount: number;
 }) {
-  const [dismissed, setDismissed] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const dismissed = useSyncExternalStore(
+    subscribeToGettingStartedDismissal,
+    getGettingStartedDismissed,
+    () => false,
+  );
 
-  useEffect(() => {
-    setMounted(true);
-    try {
-      setDismissed(window.localStorage.getItem("metricasur_getting_started_dismissed") === "1");
-    } catch {
-      setDismissed(false);
-    }
-  }, []);
-
-  if (!mounted || dismissed || recordsCount > 0) return null;
+  if (dismissed || recordsCount > 0) return null;
 
   const steps = [
     { done: enabledModulesCount > 0, title: "Prepará tus herramientas", description: "Revisá los módulos que mejor se adaptan a tu actividad.", href: "/app?section=settings", action: "Ver módulos" },
@@ -148,8 +162,8 @@ export function GettingStartedCard({ businessName, recordsCount, enabledModulesC
           <p className="mt-1 text-xs text-[var(--muted-light)]">Una guía breve y opcional para aprovechar tu espacio de trabajo.</p>
         </div>
         <button type="button" onClick={() => {
-          setDismissed(true);
           try { window.localStorage.setItem("metricasur_getting_started_dismissed", "1"); } catch {}
+          window.dispatchEvent(new Event(GETTING_STARTED_EVENT));
         }} className="rounded-lg p-1.5 text-[var(--muted-light)] hover:bg-[var(--surface-hover)]" aria-label="Ocultar guía de primeros pasos"><X size={16} /></button>
       </div>
       <div className="mt-4 flex items-center gap-3">
