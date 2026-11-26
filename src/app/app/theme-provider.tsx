@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { updatePreferences } from "@/lib/user-preferences";
+import { loadPreferences, updatePreferences } from "@/lib/user-preferences";
 
 type Theme = "light" | "dark" | "system";
 
@@ -14,9 +14,10 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   const saved = window.localStorage.getItem("metricasur_theme");
-  return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+  if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  return loadPreferences().theme;
 }
 
 function getInitialSystemTheme(): "light" | "dark" {

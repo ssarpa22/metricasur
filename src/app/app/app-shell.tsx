@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Activity, AlertTriangle, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
@@ -79,15 +79,18 @@ const moduleIcons: Record<string, typeof ShoppingBag> = {
   time_tracking: Activity, production: Store, work_orders: ClipboardList, tasks: Check,
 };
 
-function NavLink({ id, label, icon: Icon, active, onClick }: {
-  id: string; label: string; icon: typeof LayoutDashboard; active: boolean; onClick?: () => void;
+function NavLink({ id, label, icon: Icon, active, onClick, collapsed = false }: {
+  id: string; label: string; icon: typeof LayoutDashboard; active: boolean; onClick?: () => void; collapsed?: boolean;
 }) {
   return (
     <Link href={`/app?section=${id}`} onClick={onClick}
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground-secondary)]"}`}>
+      aria-current={active ? "page" : undefined}
+      aria-label={collapsed ? label : undefined}
+      title={collapsed ? label : undefined}
+      className={`group relative flex items-center rounded-xl py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] ${collapsed ? "justify-center px-0" : "gap-3 px-3"} ${active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground-secondary)]"}`}>
       <Icon size={18} strokeWidth={active ? 2.2 : 1.8}/>
-      <span>{label}</span>
-      {active && <span className="ml-auto size-1.5 rounded-full bg-[var(--accent)]"/>}
+      {!collapsed && <span>{label}</span>}
+      {active && <span className={`size-1.5 rounded-full bg-[var(--accent)] ${collapsed ? "absolute right-2 top-1/2 -translate-y-1/2" : "ml-auto"}`}/>} 
     </Link>
   );
 }
@@ -119,7 +122,7 @@ export function AppShell(props: Props) {
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-[76px] items-center justify-between border-b border-[var(--line-light)] px-5">
-        <Link href="/app" className={`flex items-center gap-3 overflow-hidden ${collapsed ? "lg:justify-center" : ""}`}>
+        <Link href="/app" aria-label="MétricaSur, ir al inicio" title={collapsed ? "MétricaSur, ir al inicio" : undefined} className={`flex items-center gap-3 overflow-hidden ${collapsed ? "lg:justify-center" : ""}`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white"><BarChart3 size={21}/></span>
           {!collapsed && <span className="whitespace-nowrap text-xl font-bold tracking-tight text-[var(--foreground-secondary)]">métrica<span className="text-[var(--accent)]">sur</span></span>}
         </Link>
@@ -127,7 +130,7 @@ export function AppShell(props: Props) {
       </div>
 
       <div className="border-b border-[var(--line-light)] p-3">
-        <button onClick={() => setBusinessExpanded(!businessExpanded)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:bg-[var(--surface-hover)]">
+        <button onClick={() => setBusinessExpanded(!businessExpanded)} aria-label={collapsed ? `Cambiar espacio de trabajo. Actual: ${active?.name ?? "Sin negocio"}` : undefined} title={collapsed ? `Espacio actual: ${active?.name ?? "Sin negocio"}` : undefined} className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:bg-[var(--surface-hover)]">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-light)] text-[var(--accent)]"><Store size={18}/></span>
           {!collapsed && <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-[var(--foreground-secondary)]">{active?.name ?? "Sin negocio"}</span>
@@ -150,23 +153,23 @@ export function AppShell(props: Props) {
         {navGroups.map((group) => <div key={group.title}>
           {!collapsed && <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)]">{group.title}</p>}
           <div className="space-y-1">{group.items.map((item) =>
-            <NavLink key={item.id} {...item} active={props.section === item.id} onClick={() => setMobileOpen(false)}/>)}</div>
+            <NavLink key={item.id} {...item} active={props.section === item.id} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>)}</div>
         </div>)}
         <div>
-          <button onClick={() => setModulesExpanded(!modulesExpanded)} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)] hover:text-[var(--muted)] ${collapsed ? "justify-center" : ""}`}>
+          <button onClick={() => setModulesExpanded(!modulesExpanded)} aria-label="Módulos activos" aria-expanded={modulesExpanded} title={collapsed ? "Módulos activos" : undefined} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)] hover:text-[var(--muted)] ${collapsed ? "justify-center" : ""}`}>
             {!collapsed && <><span className="flex-1 text-left">Módulos activos</span><span className="rounded-full bg-[var(--line-light)] px-2 py-0.5 text-[10px]">{activeCount}</span><ChevronDown size={14} className={modulesExpanded ? "rotate-180" : ""}/></>}
             {collapsed && <Package size={17}/>}
           </button>
           {modulesExpanded && <div className="space-y-1">{enabledModuleList.map((module) => {
             const Icon = moduleIcons[module.slug] ?? Package;
-            return <NavLink key={module.slug} id={module.slug} label={module.name} icon={Icon} active={props.section === module.slug} onClick={() => setMobileOpen(false)}/>;
+            return <NavLink key={module.slug} id={module.slug} label={module.name} icon={Icon} active={props.section === module.slug} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>;
           })}</div>}
           {!enabledModuleList.length && !collapsed && <p className="px-3 py-2 text-xs text-[var(--muted-light)]">Todavía no hay módulos activos.</p>}
         </div>
         <div className="border-t border-[var(--line-light)] pt-4">
-          <NavLink id="subscription" label="Suscripción" icon={CreditCard} active={props.section === "subscription"} onClick={() => setMobileOpen(false)}/>
-          <NavLink id="assistant" label="Asistente IA" icon={Sparkles} active={props.section === "assistant"} onClick={() => setMobileOpen(false)}/>
-          <NavLink id="settings" label="Configuración" icon={Settings2} active={props.section === "settings"} onClick={() => setMobileOpen(false)}/>
+          <NavLink id="subscription" label="Suscripción" icon={CreditCard} active={props.section === "subscription"} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>
+          <NavLink id="assistant" label="Asistente IA" icon={Sparkles} active={props.section === "assistant"} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>
+          <NavLink id="settings" label="Configuración" icon={Settings2} active={props.section === "settings"} collapsed={collapsed} onClick={() => setMobileOpen(false)}/>
         </div>
       </nav>
 
