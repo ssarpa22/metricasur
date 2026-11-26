@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Activity, ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays,
+  ArrowRight, BarChart3, BriefcaseBusiness,
   Command, CreditCard, LayoutDashboard, Package, Search, Settings2,
-  ShoppingBag, Store, Users, X,
+  Store, Users, X,
 } from "lucide-react";
 
 type ModuleItem = { slug: string; name: string; description: string };
