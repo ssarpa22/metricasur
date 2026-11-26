@@ -47,7 +47,7 @@ select extensions.is(
 );
 
 select extensions.throws_ok(
-  $ select * from public.get_account_subscription_context('91000000-0000-4000-9000-000000000002'::uuid) $,
+  $test$ select * from public.get_account_subscription_context('91000000-0000-4000-9000-000000000002'::uuid) $test$,
   '42501', null,
   'an account cannot read another unrelated account subscription context'
 );
