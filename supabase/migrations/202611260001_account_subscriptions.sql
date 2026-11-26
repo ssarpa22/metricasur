@@ -202,6 +202,71 @@ $$;
 
 revoke all on function public.enforce_monthly_business_record_limit() from public, anon, authenticated;
 
+
+
+-- Members of a shared workspace may read the owning account's plan and aggregate
+-- usage, but only for an account that owns a business they belong to.
+create or replace function public.get_account_subscription_context(p_account_user_id uuid)
+returns table (
+  plan text,
+  status text,
+  started_at timestamptz,
+  renews_at timestamptz,
+  free_plan_grandfathered boolean,
+  business_count integer,
+  monthly_record_count integer
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $
+declare
+  v_start timestamptz := date_trunc('month', now() at time zone 'UTC') at time zone 'UTC';
+  v_end timestamptz := (date_trunc('month', now() at time zone 'UTC') + interval '1 month') at time zone 'UTC';
+begin
+  if auth.uid() is null or (
+    p_account_user_id <> auth.uid()
+    and not exists (
+      select 1
+      from public.businesses business
+      join public.business_memberships membership on membership.business_id = business.id
+      where business.created_by = p_account_user_id
+        and membership.user_id = auth.uid()
+    )
+  ) then
+    raise exception 'Not authorized to read this account subscription'
+      using errcode = '42501';
+  end if;
+
+  return query
+  select
+    subscription.plan,
+    subscription.status,
+    subscription.started_at,
+    subscription.renews_at,
+    subscription.free_plan_grandfathered,
+    (
+      select count(*)::integer
+      from public.businesses business
+      where business.created_by = p_account_user_id
+    ),
+    (
+      select count(*)::integer
+      from public.business_records record
+      join public.businesses business on business.id = record.business_id
+      where business.created_by = p_account_user_id
+        and record.created_at >= v_start
+        and record.created_at < v_end
+    )
+  from public.account_subscriptions subscription
+  where subscription.user_id = p_account_user_id;
+end;
+$;
+
+revoke all on function public.get_account_subscription_context(uuid) from public, anon;
+grant execute on function public.get_account_subscription_context(uuid) to authenticated;
+
 comment on table public.account_subscriptions is
   'One subscription per authenticated account. Business and monthly record limits are aggregated across businesses created by that account.';
 comment on table public.business_subscriptions is
