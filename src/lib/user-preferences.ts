@@ -1,4 +1,5 @@
 const PREFERENCES_KEY = "metricasur_preferences";
+export const PREFERENCES_EVENT = "metricasur:preferences-updated";
 
 export type Theme = "light" | "dark" | "system";
 export type LayoutDensity = "compact" | "comfortable";
@@ -86,6 +87,7 @@ export function savePreferences(prefs: UserPreferences): void {
   if (!storage) return;
   try {
     storage.setItem(PREFERENCES_KEY, JSON.stringify(prefs));
+    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT, { detail: prefs }));
   } catch {}
 }
 

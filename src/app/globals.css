@@ -69,3 +69,29 @@
   input, select, textarea { background-color: var(--surface); color: var(--foreground); border-color: var(--line); }
   ::placeholder { color: var(--muted-light); opacity: 1; }
 }
+
+
+/* Compact density is a workspace-wide preference, not only a dashboard layout. */
+[data-density="compact"] main {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+[data-density="compact"] main .rounded-2xl.border {
+  padding: 1rem;
+}
+
+[data-density="compact"] main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+}
+
+[data-density="compact"] main .space-y-7 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 639px) {
+  [data-density="compact"] main {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}

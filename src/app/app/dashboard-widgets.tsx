@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity, ArrowDownLeft, ArrowRight, Check, CheckSquare,
@@ -11,9 +11,10 @@ import {
   getTodayInBuenosAires, getOverdueRecords, getPendingRecords, getCompletionRate,
 } from "@/lib/record-insights";
 import {
-  loadPreferences, savePreferences, getVisibleWidgets, getLayoutClass, type DashboardWidget, type UserPreferences,
+  loadPreferences, savePreferences, getVisibleWidgets, getLayoutClass, PREFERENCES_EVENT, type DashboardWidget, type UserPreferences,
 } from "@/lib/user-preferences";
 import { moduleCatalog } from "@/lib/modules";
+import { GettingStartedCard } from "./productivity-tools";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
 type BusinessRecord = {
@@ -29,11 +30,22 @@ type DashboardProps = {
   business: Business;
   industry: IndustryInfo;
   records: BusinessRecord[];
+  enabledModulesCount: number;
 };
 
 function useDashboardPrefs() {
   const [prefs, setPrefs] = useState<UserPreferences>(() => loadPreferences());
   const [customizing, setCustomizing] = useState(false);
+
+  useEffect(() => {
+    const syncPreferences = () => setPrefs(loadPreferences());
+    window.addEventListener(PREFERENCES_EVENT, syncPreferences);
+    window.addEventListener("storage", syncPreferences);
+    return () => {
+      window.removeEventListener(PREFERENCES_EVENT, syncPreferences);
+      window.removeEventListener("storage", syncPreferences);
+    };
+  }, []);
 
   const updatePrefs = useCallback((partial: Partial<UserPreferences>) => {
     const next = { ...prefs, ...partial };
@@ -221,7 +233,7 @@ function WidgetRenderer({ widget, industry, records }: WidgetRendererProps) {
   }
 }
 
-export function Dashboard({ firstName, business, industry, records }: DashboardProps) {
+export function Dashboard({ firstName, business, industry, records, enabledModulesCount }: DashboardProps) {
   const { prefs, setPrefs: updatePrefs, customizing, setCustomizing } = useDashboardPrefs();
   const visibleWidgets = useMemo(() => getVisibleWidgets(prefs), [prefs]);
 
@@ -264,6 +276,8 @@ export function Dashboard({ firstName, business, industry, records }: DashboardP
           <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--line-light)] bg-[var(--surface)] px-3 py-2 text-xs font-medium text-[var(--muted)]"><span className="size-2 rounded-full bg-[var(--success)]" /> Espacio activo</span>
         </div>
       </div>
+
+      {prefs.showWelcomeCard && <GettingStartedCard businessName={business.name} recordsCount={records.length} enabledModulesCount={enabledModulesCount} />}
 
       {visibleWidgets.map((widget) => (
         <WidgetRenderer key={widget.id} widget={widget} industry={industry} records={records} />

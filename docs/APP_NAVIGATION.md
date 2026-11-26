@@ -17,5 +17,13 @@ MétricaSur uses a compact workspace shell with a responsive sidebar and a dashb
 - Empty states never fabricate financial metrics, transactions, tasks, or notifications.
 - Module activation and workspace deletion retain their existing server-side authorization and database protections.
 
+## Productivity and guidance
+
+- The application header exposes a searchable command palette; `Ctrl+K` (or `Cmd+K` on macOS) opens it and `Escape` closes it.
+- The command palette searches the main sections and the currently enabled modules without changing workspace permissions.
+- The dashboard offers a dismissible first-steps guide for empty workspaces. Its dismissal is stored locally in the browser.
+- The compact-density preference applies to the workspace content area as well as the dashboard.
+- Preference updates are broadcast between mounted app surfaces and synchronized across browser tabs through the storage event.
+
 ## Scope
 This navigation refactor does not introduce operational tables or pretend that module functionality already exists. It creates the information architecture and dashboard surface that later modules can populate.
