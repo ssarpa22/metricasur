@@ -32,7 +32,12 @@ export async function getAccountSubscription(
 ): Promise<{ data: SubscriptionSnapshot | null; error: unknown }> {
   const { row, error } = await getAccountContext(supabase, userId);
   if (error || !row) return { data: null, error };
-  const { business_count: _businessCount, monthly_record_count: _monthlyRecordCount, ...subscription } = row;
+  const subscription = {
+    status: row.status,
+    started_at: row.started_at,
+    renews_at: row.renews_at,
+    free_plan_grandfathered: row.free_plan_grandfathered,
+  };
   return { data: { ...subscription, plan: getSubscriptionPlan(row.plan) }, error: null };
 }
 
