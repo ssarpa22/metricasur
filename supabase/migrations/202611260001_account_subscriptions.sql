@@ -221,7 +221,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $account_context$
 declare
   v_start timestamptz := date_trunc('month', now() at time zone 'UTC') at time zone 'UTC';
   v_end timestamptz := (date_trunc('month', now() at time zone 'UTC') + interval '1 month') at time zone 'UTC';
@@ -263,7 +263,7 @@ begin
   from public.account_subscriptions subscription
   where subscription.user_id = p_account_user_id;
 end;
-$;
+$account_context$;
 
 revoke all on function public.get_account_subscription_context(uuid) from public, anon;
 grant execute on function public.get_account_subscription_context(uuid) to authenticated;
