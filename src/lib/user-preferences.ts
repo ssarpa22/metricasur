@@ -39,9 +39,13 @@ function getDefaults(): UserPreferences {
 }
 
 function getStorage(): Storage | undefined {
-  if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
-  if (typeof globalThis !== "undefined" && (globalThis as { localStorage?: Storage }).localStorage) {
-    return (globalThis as { localStorage?: Storage }).localStorage!;
+  try {
+    if (typeof window !== "undefined" && window.localStorage) return window.localStorage;
+    if (typeof globalThis !== "undefined" && (globalThis as { localStorage?: Storage }).localStorage) {
+      return (globalThis as { localStorage?: Storage }).localStorage!;
+    }
+  } catch {
+    // Preferences are optional; the application must remain usable without storage access.
   }
   return undefined;
 }
