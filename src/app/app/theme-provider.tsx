@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { updatePreferences } from "@/lib/user-preferences";
 
 type Theme = "light" | "dark" | "system";
 
@@ -30,7 +31,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const applyTheme = useCallback((next: Theme) => {
     if (typeof window === "undefined") return;
     const root = document.documentElement;
-    const resolved = next === "system" ? (window.matchMedia("(prefers-color-scheme: dark").matches ? "dark" : "light") : next;
+    const resolved = next === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : next;
     root.setAttribute("data-theme", resolved);
   }, []);
 
@@ -38,6 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(next);
     if (typeof window !== "undefined") {
       localStorage.setItem("metricasur_theme", next);
+      updatePreferences({ theme: next });
       applyTheme(next);
     }
   }, [applyTheme]);
