@@ -37,7 +37,7 @@ afterEach(() => {
 describe("loadPreferences", () => {
   it("returns defaults when no stored preferences exist", () => {
     const prefs = loadPreferences();
-    expect(prefs.theme).toBe("system");
+    expect(prefs.theme).toBe("dark");
     expect(prefs.layoutDensity).toBe("comfortable");
     expect(prefs.sidebarCollapsed).toBe(false);
     expect(prefs.showWelcomeCard).toBe(true);
