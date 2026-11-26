@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Activity, AlertTriangle, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
