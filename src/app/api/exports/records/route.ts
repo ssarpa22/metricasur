@@ -16,7 +16,11 @@ export async function GET(request: Request) {
     : await membershipQuery.limit(1).maybeSingle();
   if (!membership) return new Response("No autorizado", { status: 403 });
 
-  const subscription = await getAccountSubscription(supabase, user.id);
+  const { data: business } = await supabase.from("businesses")
+    .select("created_by").eq("id", membership.business_id).maybeSingle();
+  if (!business?.created_by) return new Response("No autorizado", { status: 403 });
+
+  const subscription = await getAccountSubscription(supabase, business.created_by);
   if (subscription.error || !subscription.data?.plan.canExport) {
     return new Response("La exportación está disponible desde Pro.", { status: 403 });
   }
