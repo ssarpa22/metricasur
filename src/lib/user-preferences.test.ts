@@ -27,9 +27,6 @@ let mockStorage: ReturnType<typeof createMockStorage>;
 beforeEach(() => {
   mockStorage = createMockStorage();
   Object.defineProperty(globalThis, "localStorage", { value: mockStorage as unknown as Storage, writable: true, configurable: true });
-  vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => mockStorage.getItem(key));
-  vi.spyOn(Storage.prototype, "setItem").mockImplementation((key, value) => mockStorage.setItem(key, value));
-  vi.spyOn(Storage.prototype, "removeItem").mockImplementation((key) => mockStorage.removeItem(key));
 });
 
 afterEach(() => {
