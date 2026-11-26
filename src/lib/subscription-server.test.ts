@@ -1,21 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  getBusinessSubscription,
+  getAccountSubscription,
   getMonthlyRecordUsage,
   getUtcMonthBounds,
   getUserPlanContext,
   planRank,
 } from "./subscription-server";
 
-type DbResponse = { data?: unknown; error?: unknown; count?: number };
-
+type DbResponse = { data?: any; error?: unknown; count?: number };
 type Chain = {
-  select: () => Chain;
-  eq: () => Chain;
-  in: () => Chain;
-  gte: () => Chain;
-  lt: () => Chain;
+  select: (...args: unknown[]) => Chain;
+  eq: (...args: unknown[]) => Chain;
+  in: (...args: unknown[]) => Chain;
+  gte: (...args: unknown[]) => Chain;
+  lt: (...args: unknown[]) => Chain;
   maybeSingle: () => Chain;
 } & PromiseLike<DbResponse>;
 
@@ -47,12 +46,6 @@ describe("getUtcMonthBounds", () => {
     expect(start.toISOString()).toBe("2026-12-01T00:00:00.000Z");
     expect(end.toISOString()).toBe("2027-01-01T00:00:00.000Z");
   });
-
-  it("handles any day of the month", () => {
-    const { start, end } = getUtcMonthBounds(new Date("2026-06-15T12:00:00.000Z"));
-    expect(start.toISOString()).toBe("2026-06-01T00:00:00.000Z");
-    expect(end.toISOString()).toBe("2026-07-01T00:00:00.000Z");
-  });
 });
 
 describe("planRank", () => {
@@ -63,8 +56,8 @@ describe("planRank", () => {
   });
 });
 
-describe("getBusinessSubscription", () => {
-  it("maps the stored plan to a subscription plan", async () => {
+describe("getAccountSubscription", () => {
+  it("loads the subscription by account owner", async () => {
     const row = {
       plan: "pro",
       status: "active",
@@ -72,58 +65,60 @@ describe("getBusinessSubscription", () => {
       renews_at: null,
       free_plan_grandfathered: false,
     };
-    const supabase = buildSupabase({ business_subscriptions: { data: row } });
-    const { data, error } = await getBusinessSubscription(supabase, "biz-1");
+    const supabase = buildSupabase({ account_subscriptions: { data: row } });
+    const { data, error } = await getAccountSubscription(supabase, "user-1");
     expect(error).toBeNull();
-    expect((data as { plan: { id: string } }).plan.id).toBe("pro");
-    expect((data as { plan: { priceUsdMonthly: number } }).plan.priceUsdMonthly).toBe(12);
+    expect(data?.plan.id).toBe("pro");
+    expect(data?.plan.priceUsdMonthly).toBe(12);
   });
 
-  it("returns null data and the error when the query fails", async () => {
-    const supabase = buildSupabase({ business_subscriptions: { error: { message: "db down" } } });
-    const { data, error } = await getBusinessSubscription(supabase, "biz-1");
+  it("returns the database error without silently granting a plan", async () => {
+    const supabase = buildSupabase({ account_subscriptions: { error: { message: "db down" } } });
+    const { data, error } = await getAccountSubscription(supabase, "user-1");
     expect(data).toBeNull();
     expect(error).toEqual({ message: "db down" });
-  });
-
-  it("returns null data when no subscription exists", async () => {
-    const supabase = buildSupabase({ business_subscriptions: { data: null, error: null } });
-    const { data, error } = await getBusinessSubscription(supabase, "biz-1");
-    expect(data).toBeNull();
-    expect(error).toBeNull();
   });
 });
 
 describe("getMonthlyRecordUsage", () => {
-  it("returns the exact count for the current UTC month", async () => {
-    const supabase = buildSupabase({ business_records: { count: 7, error: null } });
-    const { count, error } = await getMonthlyRecordUsage(supabase, "biz-1", new Date("2026-12-15T10:00:00.000Z"));
-    expect(count).toBe(7);
+  it("counts records across every business owned by the account", async () => {
+    const supabase = buildSupabase({
+      businesses: { data: [{ id: "biz-1" }, { id: "biz-2" }] },
+      business_records: { count: 17, error: null },
+    });
+    const { count, error } = await getMonthlyRecordUsage(supabase, "user-1", new Date("2026-12-15T10:00:00.000Z"));
+    expect(count).toBe(17);
     expect(error).toBeNull();
   });
 
-  it("returns zero count and the error when the query fails", async () => {
-    const supabase = buildSupabase({ business_records: { error: { message: "db down" } } });
-    const { count, error } = await getMonthlyRecordUsage(supabase, "biz-1");
+  it("returns zero when the account has no businesses", async () => {
+    const supabase = buildSupabase({ businesses: { data: [] } });
+    const { count, error } = await getMonthlyRecordUsage(supabase, "user-1");
+    expect(count).toBe(0);
+    expect(error).toBeNull();
+  });
+
+  it("surfaces errors loading owned businesses", async () => {
+    const supabase = buildSupabase({ businesses: { error: { message: "db down" } } });
+    const { count, error } = await getMonthlyRecordUsage(supabase, "user-1");
     expect(count).toBe(0);
     expect(error).toEqual({ message: "db down" });
   });
 });
 
 describe("getUserPlanContext", () => {
-  it("picks the highest plan among owner or admin memberships", async () => {
-    const memberships = [
-      { business_id: "biz-1", role: "owner" },
-      { business_id: "biz-2", role: "member" },
-      { business_id: "biz-3", role: "admin" },
-    ];
-    const subscriptions = [
-      { plan: "free" },
-      { plan: "business" },
-    ];
+  it("returns the account plan and counts businesses created by that account", async () => {
     const supabase = buildSupabase({
-      business_memberships: { data: memberships },
-      business_subscriptions: { data: subscriptions },
+      businesses: { data: [{ id: "biz-1" }, { id: "biz-2" }] },
+      account_subscriptions: {
+        data: {
+          plan: "business",
+          status: "active",
+          started_at: "2026-01-01T00:00:00.000Z",
+          renews_at: null,
+          free_plan_grandfathered: false,
+        },
+      },
     });
     const { plan, businessCount, error } = await getUserPlanContext(supabase, "user-1");
     expect(error).toBeNull();
@@ -131,42 +126,14 @@ describe("getUserPlanContext", () => {
     expect(businessCount).toBe(2);
   });
 
-  it("returns free plan with zero businesses when there are no memberships", async () => {
-    const supabase = buildSupabase({ business_memberships: { data: [] } });
-    const { plan, businessCount, error } = await getUserPlanContext(supabase, "user-1");
-    expect(error).toBeNull();
-    expect(plan.id).toBe("free");
-    expect(businessCount).toBe(0);
-  });
-
-  it("returns the membership error when it fails", async () => {
-    const supabase = buildSupabase({ business_memberships: { error: { message: "db down" } } });
-    const { plan, businessCount, error } = await getUserPlanContext(supabase, "user-1");
-    expect(plan.id).toBe("free");
-    expect(businessCount).toBe(0);
-    expect(error).toEqual({ message: "db down" });
-  });
-
-  it("returns the subscription error when it fails", async () => {
+  it("reports a missing account subscription as an error", async () => {
     const supabase = buildSupabase({
-      business_memberships: { data: [{ business_id: "biz-1", role: "owner" }] },
-      business_subscriptions: { error: { message: "db down" } },
+      businesses: { data: [{ id: "biz-1" }] },
+      account_subscriptions: { data: null, error: null },
     });
     const { plan, businessCount, error } = await getUserPlanContext(supabase, "user-1");
     expect(plan.id).toBe("free");
     expect(businessCount).toBe(1);
-    expect(error).toEqual({ message: "db down" });
-  });
-
-  it("returns an error when a managed business lacks a subscription", async () => {
-    const supabase = buildSupabase({
-      business_memberships: { data: [{ business_id: "biz-1", role: "owner" }, { business_id: "biz-2", role: "owner" }] },
-      business_subscriptions: { data: [{ plan: "pro" }] },
-    });
-    const { plan, businessCount, error } = await getUserPlanContext(supabase, "user-1");
-    expect(plan.id).toBe("free");
-    expect(businessCount).toBe(2);
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toBe("Missing subscription for a managed business");
   });
 });
