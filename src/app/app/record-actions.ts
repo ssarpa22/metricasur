@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { moduleSlugSchema } from "@/lib/modules";
 import { isValidDateOnly } from "@/lib/date-validation";
 import { validateCustomerMetadata } from "@/lib/customer-metadata";
-import { getBusinessSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
+import { getAccountSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function fail(slug: string, message: string): never {
@@ -56,9 +56,9 @@ export async function createBusinessRecord(formData: FormData) {
   if (dueDate && !isValidDateOnly(dueDate)) fail(slug, "La fecha no es válida.");
   const metadata = readCustomerMetadata(formData, slug);
   const { supabase, user } = await authorize(businessId, slug);
-  const subscription = await getBusinessSubscription(supabase, businessId);
-  if (subscription.error || !subscription.data) fail(slug, "No pudimos verificar la suscripción de este negocio.");
-  const usage = await getMonthlyRecordUsage(supabase, businessId);
+  const subscription = await getAccountSubscription(supabase, user.id);
+  if (subscription.error || !subscription.data) fail(slug, "No pudimos verificar la suscripción de tu cuenta.");
+  const usage = await getMonthlyRecordUsage(supabase, user.id);
   if (usage.error) fail(slug, "No pudimos verificar el uso mensual de registros.");
   if (subscription.data.plan.maxMonthlyRecords !== null && usage.count >= subscription.data.plan.maxMonthlyRecords) {
     fail(slug, `Alcanzaste el límite mensual de ${subscription.data.plan.maxMonthlyRecords} registros de tu plan ${subscription.data.plan.name}. Revisá Suscripción para ampliar el límite.`);
