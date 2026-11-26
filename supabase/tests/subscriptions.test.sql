@@ -1,4 +1,4 @@
-﻿-- Subscription foundation tests. Run with: npx supabase test db
+-- Account-level subscription regression tests. Run with: npx supabase test db
 create extension if not exists pgtap with schema extensions;
 
 begin;
@@ -18,33 +18,40 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '91000000-0000-4000-9000-000000000001', true);
 select set_config('request.jwt.claims', '{"sub":"91000000-0000-4000-9000-000000000001","role":"authenticated"}', true);
 
-select set_config('test.subscription_business_id', public.create_business('Subscription workspace', 'retail')::text, true);
 select extensions.is(
-  (select plan from public.business_subscriptions where business_id = current_setting('test.subscription_business_id')::uuid),
+  (select plan from public.account_subscriptions where user_id = auth.uid()),
   'free',
-  'new businesses receive the Free plan'
+  'new accounts receive one Free subscription'
 );
+
+select set_config(
+  'test.subscription_business_id',
+  public.create_business('Subscription workspace', 'retail')::text,
+  true
+);
+
 select extensions.is(
-  (select count(*)::integer from public.business_subscriptions where business_id = current_setting('test.subscription_business_id')::uuid),
+  (select count(*)::integer from public.account_subscriptions where user_id = auth.uid()),
   1,
-  'each business has one subscription row'
-);
-select extensions.is(
-  (select free_plan_grandfathered from public.business_subscriptions where business_id = current_setting('test.subscription_business_id')::uuid),
-  false,
-  'new Free businesses are not grandfathered'
+  'creating a business does not create another subscription'
 );
 
 select extensions.throws_ok(
-  $$ update public.business_subscriptions set plan = 'business' where business_id = current_setting('test.subscription_business_id')::uuid $$,
+  $$ select public.create_business('Second workspace', 'retail') $$,
   '42501', null,
-  'authenticated clients cannot change subscription privileges'
+  'Free account cannot bypass its one-business limit through the RPC'
+);
+
+select extensions.throws_ok(
+  $$ update public.account_subscriptions set plan = 'business' where user_id = auth.uid() $$,
+  '42501', null,
+  'authenticated clients cannot change account subscription privileges'
 );
 
 select extensions.is(
-  (select count(*)::integer from public.business_subscriptions where business_id = current_setting('test.subscription_business_id')::uuid and status = 'active'),
+  (select count(*)::integer from public.businesses where created_by = auth.uid()),
   1,
-  'new subscriptions start active'
+  'the account owns exactly one business after the rejected second creation'
 );
 reset role;
 
@@ -52,10 +59,11 @@ set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select extensions.throws_ok(
-  $$ select count(*) from public.business_subscriptions $$,
+  $$ select count(*) from public.account_subscriptions $$,
   '42501', null,
-  'anonymous users cannot read subscriptions'
-);reset role;
+  'anonymous users cannot read account subscriptions'
+);
+reset role;
 
 select * from extensions.finish();
 rollback;
