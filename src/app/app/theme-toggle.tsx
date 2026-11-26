@@ -1,51 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "./theme-provider";
 
-type ThemeOption = { id: "light" | "dark" | "system"; label: string; icon: React.FC<{ size?: number | string }> };
-
-const themeOptions: ThemeOption[] = [
-  { id: "light", label: "Claro", icon: Sun },
-  { id: "dark", label: "Oscuro", icon: Moon },
-  { id: "system", label: "Sistema", icon: Monitor },
-];
-
-export function ThemeSelector() {
-  const { theme, setTheme } = useTheme();
-  const [open, setOpen] = useState(false);
+export function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   return (
-    <div className="relative inline-block">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-xl border p-2.5 transition hover:bg-[var(--surface-hover)] focus:outline-none"
-        aria-label="Seleccionar tema de color"
-        aria-expanded={open}
-      >
-        {(() => { const Opt = themeOptions.find((o) => o.id === theme)?.icon; return Opt ? <Opt size={16} /> : null; })()}
-        <span className="text-xs font-medium hidden sm:block">{themeOptions.find((o) => o.id === theme)?.label}</span>
-        <span className="ml-1 text-[10px]">{open ? "▲" : "▼"}</span>
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-32 rounded-xl border bg-[var(--surface)] p-1 shadow-lg z-50">
-          {themeOptions.map((option) => {
-            const Icon = option.icon;
-            return (
-              <button
-                key={option.id}
-                onClick={() => { setTheme(option.id); setOpen(false); }}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${theme === option.id ? "bg-[var(--accent-light)] text-[var(--accent-hover)]" : "text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"}`}
-              >
-                <Icon size={16} />
-                <span>{option.label}</span>
-                {theme === option.id && <span className="ml-auto text-[10px]">✓</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isDark}
+      aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="relative inline-flex h-8 w-[3.75rem] shrink-0 items-center rounded-full border border-[var(--line)] bg-[var(--surface-elevated)] p-1 transition-colors hover:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
+    >
+      <Sun size={14} aria-hidden="true" className={`absolute left-1.5 transition-colors ${isDark ? "text-[var(--muted-light)]" : "text-amber-500"}`} />
+      <Moon size={14} aria-hidden="true" className={`absolute right-1.5 transition-colors ${isDark ? "text-indigo-400" : "text-[var(--muted-light)]"}`} />
+      <span
+        aria-hidden="true"
+        className={`relative z-10 size-5 rounded-full bg-[var(--surface)] shadow-sm transition-transform ${isDark ? "translate-x-7" : "translate-x-0"}`}
+      />
+    </button>
   );
 }
