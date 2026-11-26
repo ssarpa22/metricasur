@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity, AlertTriangle, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
@@ -20,7 +20,8 @@ import { ModuleWorkspace } from "./module-workspace";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 import { Dashboard, useDashboardPrefs } from "./dashboard-widgets";
-import type { LayoutDensity, Theme } from "@/lib/user-preferences";
+import { loadPreferences, type LayoutDensity, type Theme } from "@/lib/user-preferences";
+import { CommandPalette } from "./productivity-tools";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
 type BusinessRecord = { id: string; module_slug: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; metadata: Record<string, unknown>; created_at: string };
@@ -92,7 +93,14 @@ function NavLink({ id, label, icon: Icon, active, onClick }: {
 }
 
 export function AppShell(props: Props) {
+  const { prefs, setPrefs: updatePrefs } = useDashboardPrefs();
   const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => setCollapsed(prefs.sidebarCollapsed), [prefs.sidebarCollapsed]);
+  const toggleSidebar = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    updatePrefs({ sidebarCollapsed: next });
+  };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [modulesExpanded, setModulesExpanded] = useState(true);
   const [businessExpanded, setBusinessExpanded] = useState(false);
@@ -177,10 +185,10 @@ export function AppShell(props: Props) {
   );
 
   return (
-    <div className="min-h-screen bg-[var(--background-secondary)] text-[var(--foreground-secondary)]">
+    <div data-density={prefs.layoutDensity} className="min-h-screen bg-[var(--background-secondary)] text-[var(--foreground-secondary)]">
       <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--line)] bg-[var(--surface)] transition-all duration-200 lg:block ${collapsed ? "w-[84px]" : "w-[272px]"}`}>
         {sidebar}
-        <button onClick={() => setCollapsed(!collapsed)} className="absolute -right-3 top-[88px] flex size-7 items-center justify-center rounded-full border border-[var(--line-light)] bg-[var(--surface)] text-[var(--muted-light)] shadow-sm hover:text-[var(--accent)]" aria-label={collapsed ? "Expandir menú" : "Contraer menú"}>{collapsed ? <ChevronRight size={15}/> : <ChevronLeft size={15}/>}</button>
+        <button onClick={toggleSidebar} className="absolute -right-3 top-[88px] flex size-7 items-center justify-center rounded-full border border-[var(--line-light)] bg-[var(--surface)] text-[var(--muted-light)] shadow-sm hover:text-[var(--accent)]" aria-label={collapsed ? "Expandir menú" : "Contraer menú"}>{collapsed ? <ChevronRight size={15}/> : <ChevronLeft size={15}/>}</button>
       </aside>
 
       {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden">
@@ -214,7 +222,7 @@ export function AppShell(props: Props) {
           {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[var(--success-light)] bg-[var(--success-light)]/50 px-4 py-3 text-sm text-[var(--success)]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
 
           {!active ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
-            <Dashboard firstName={props.firstName} business={active} industry={industry} records={props.allRecords}/>
+            <Dashboard firstName={props.firstName} business={active} industry={industry} records={props.allRecords} enabledModulesCount={activeCount}/>
           ) : props.section === "settings" ? (
             <SettingsView {...props} industry={industry} isManager={isManager}/>
           ) : props.section === "assistant" ? (
