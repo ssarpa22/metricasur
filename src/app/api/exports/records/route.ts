@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getBusinessSubscription } from "@/lib/subscription-server";
+import { getAccountSubscription } from "@/lib/subscription-server";
 import { serializeCsv } from "@/lib/record-insights";
 
 export async function GET(request: Request) {
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     : await membershipQuery.limit(1).maybeSingle();
   if (!membership) return new Response("No autorizado", { status: 403 });
 
-  const subscription = await getBusinessSubscription(supabase, membership.business_id);
+  const subscription = await getAccountSubscription(supabase, user.id);
   if (subscription.error || !subscription.data?.plan.canExport) {
     return new Response("La exportación está disponible desde Pro.", { status: 403 });
   }
