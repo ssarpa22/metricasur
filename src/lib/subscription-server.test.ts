@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getAccountSubscription,
+  getAccountSubscriptionOverview,
   getMonthlyRecordUsage,
   getUtcMonthBounds,
   getUserPlanContext,
@@ -41,6 +42,23 @@ describe("planRank", () => {
 });
 
 describe("account subscription context", () => {
+  it("loads plan, status, and account usage from a single overview RPC", async () => {
+    let calls = 0;
+    const supabase = {
+      rpc: () => {
+        calls += 1;
+        return Promise.resolve({ data: [row], error: null });
+      },
+    } as unknown as SupabaseClient;
+
+    const { data, error } = await getAccountSubscriptionOverview(supabase, "account-1");
+    expect(error).toBeNull();
+    expect(calls).toBe(1);
+    expect(data?.plan.id).toBe("pro");
+    expect(data?.businessCount).toBe(2);
+    expect(data?.monthlyRecordCount).toBe(17);
+  });
+
   it("maps the account plan and excludes aggregate counters from the snapshot", async () => {
     const supabase = buildSupabase({ data: [row], error: null });
     const { data, error } = await getAccountSubscription(supabase, "account-1");
