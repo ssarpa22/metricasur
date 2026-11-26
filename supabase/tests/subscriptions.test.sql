@@ -2,7 +2,7 @@
 create extension if not exists pgtap with schema extensions;
 
 begin;
-select extensions.plan(6);
+select extensions.plan(8);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, confirmed_at,
@@ -11,6 +11,10 @@ insert into auth.users (
 values (
   '91000000-0000-4000-9000-000000000001', 'authenticated', 'authenticated',
   'subscription-owner@example.test', '', now(),
+  '{"provider":"email","providers":["email"]}', '{}', now(), now()
+), (
+  '91000000-0000-4000-9000-000000000002', 'authenticated', 'authenticated',
+  'subscription-outsider@example.test', '', now(),
   '{"provider":"email","providers":["email"]}', '{}', now(), now()
 );
 
@@ -34,6 +38,18 @@ select extensions.is(
   (select count(*)::integer from public.account_subscriptions where user_id = auth.uid()),
   1,
   'creating a business does not create another subscription'
+);
+
+select extensions.is(
+  (select business_count from public.get_account_subscription_context(auth.uid())),
+  1,
+  'account context reports aggregate business usage'
+);
+
+select extensions.throws_ok(
+  $ select * from public.get_account_subscription_context('91000000-0000-4000-9000-000000000002'::uuid) $,
+  '42501', null,
+  'an account cannot read another unrelated account subscription context'
 );
 
 select extensions.throws_ok(
