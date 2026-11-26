@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { industrySchema, type Industry } from "@/lib/industries";
 import { AppShell } from "./app-shell";
 import { moduleSlugSchema } from "@/lib/modules";
-import { getBusinessSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
+import { getAccountSubscription, getMonthlyRecordUsage, getUserPlanContext } from "@/lib/subscription-server";
 import { getSubscriptionPlan } from "@/lib/subscriptions";
 
 type AppPageProps = {
@@ -28,19 +28,19 @@ export default async function AppPage({ searchParams }: AppPageProps) {
 
   const businessIds = memberships?.map((membership) => membership.business_id) ?? [];
   const { data: businessRows, error: businessesError } = businessIds.length
-    ? await supabase.from("businesses").select("id, name, industry, created_at").in("id", businessIds).order("created_at")
+    ? await supabase.from("businesses").select("id, name, industry, created_at, created_by").in("id", businessIds).order("created_at")
     : { data: [], error: null };
-  const businesses = (businessRows ?? []) as { id: string; name: string; industry: string; created_at: string }[];
+  const businesses = (businessRows ?? []) as { id: string; name: string; industry: string; created_at: string; created_by: string }[];
   const cookieStore = await cookies();
   const preferredId = cookieStore.get("metricasur_active_business")?.value;
   const activeBusiness = businesses.find((business) => business.id === preferredId) ?? businesses[0] ?? null;
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role ?? null;
+  const accountOwnerId = activeBusiness?.created_by ?? user.id;
+  const planContext = await getUserPlanContext(supabase, accountOwnerId);
   const subscriptionResult = activeBusiness
-    ? await getBusinessSubscription(supabase, activeBusiness.id)
+    ? await getAccountSubscription(supabase, accountOwnerId)
     : { data: null, error: null };
-  const usageResult = activeBusiness
-    ? await getMonthlyRecordUsage(supabase, activeBusiness.id)
-    : { count: 0, error: null };
+  const usageResult = await getMonthlyRecordUsage(supabase, accountOwnerId);
   const subscription = subscriptionResult.data ?? {
     plan: getSubscriptionPlan("free"),
     status: "active",
@@ -67,8 +67,8 @@ export default async function AppPage({ searchParams }: AppPageProps) {
       ? "No pudimos cargar los módulos de este negocio. Es posible que falte aplicar una migración de Supabase."
       : recordsError
         ? "No pudimos cargar los registros. Es posible que falte aplicar una migración de Supabase."
-        : subscriptionResult.error || usageResult.error
-          ? "No pudimos cargar el estado de suscripción de este negocio. Es posible que falte aplicar la migración de suscripciones."
+        : subscriptionResult.error || usageResult.error || planContext.error
+          ? "No pudimos cargar el estado de suscripción de tu cuenta. Es posible que falte aplicar la migración de suscripciones."
           : undefined;
   const allRecords = (allRecordRows ?? []).map((record) => ({
     ...record,
@@ -101,7 +101,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
       renewsAt: subscription.renews_at,
       freePlanGrandfathered: subscription.free_plan_grandfathered,
       monthlyRecords: usageResult.count,
-      businessCount: memberships?.filter((membership) => membership.role === "owner" || membership.role === "admin").length ?? 0,
+      businessCount: planContext.businessCount,
     }}
     moduleSetupMissing={Boolean(activeBusiness && !installationsError && (installations ?? []).length === 0)}
     records={records}

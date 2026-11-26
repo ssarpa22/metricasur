@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { moduleSlugSchema } from "@/lib/modules";
 import { isValidDateOnly } from "@/lib/date-validation";
 import { validateCustomerMetadata } from "@/lib/customer-metadata";
-import { getBusinessSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
+import { getAccountSubscription, getMonthlyRecordUsage } from "@/lib/subscription-server";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function fail(slug: string, message: string): never {
@@ -30,10 +30,13 @@ async function authorize(businessId: string, slug: string) {
   const { data: membership } = await supabase.from("business_memberships")
     .select("business_id").eq("business_id", businessId).eq("user_id", user.id).maybeSingle();
   if (!membership) fail(slug, "No tenés acceso a este espacio de trabajo.");
+  const { data: business } = await supabase.from("businesses")
+    .select("created_by").eq("id", businessId).maybeSingle();
+  if (!business?.created_by) fail(slug, "No pudimos verificar la cuenta propietaria del negocio.");
   const { data: module } = await supabase.from("business_modules")
     .select("enabled").eq("business_id", businessId).eq("module_slug", slug).maybeSingle();
   if (!module?.enabled) fail(slug, "Este módulo está desactivado. Podés habilitarlo desde Configuración.");
-  return { supabase, user };
+  return { supabase, user, accountOwnerId: business.created_by };
 }
 
 export async function createBusinessRecord(formData: FormData) {
@@ -55,10 +58,10 @@ export async function createBusinessRecord(formData: FormData) {
   if ((amount !== null && (!Number.isFinite(amount) || amount < 0)) || (quantity !== null && (!Number.isFinite(quantity) || quantity < 0))) fail(slug, "Importe o cantidad no válidos.");
   if (dueDate && !isValidDateOnly(dueDate)) fail(slug, "La fecha no es válida.");
   const metadata = readCustomerMetadata(formData, slug);
-  const { supabase, user } = await authorize(businessId, slug);
-  const subscription = await getBusinessSubscription(supabase, businessId);
-  if (subscription.error || !subscription.data) fail(slug, "No pudimos verificar la suscripción de este negocio.");
-  const usage = await getMonthlyRecordUsage(supabase, businessId);
+  const { supabase, user, accountOwnerId } = await authorize(businessId, slug);
+  const subscription = await getAccountSubscription(supabase, accountOwnerId);
+  if (subscription.error || !subscription.data) fail(slug, "No pudimos verificar la suscripción de tu cuenta.");
+  const usage = await getMonthlyRecordUsage(supabase, accountOwnerId);
   if (usage.error) fail(slug, "No pudimos verificar el uso mensual de registros.");
   if (subscription.data.plan.maxMonthlyRecords !== null && usage.count >= subscription.data.plan.maxMonthlyRecords) {
     fail(slug, `Alcanzaste el límite mensual de ${subscription.data.plan.maxMonthlyRecords} registros de tu plan ${subscription.data.plan.name}. Revisá Suscripción para ampliar el límite.`);
