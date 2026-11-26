@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
+  Activity, AlertTriangle, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
   CalendarDays, Check, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, ClipboardList,
-  CreditCard, LayoutDashboard, LogOut, Menu, Package, Plus, Settings2, ShoppingBag,
+  CreditCard, LayoutDashboard, LogOut, Menu, Monitor, Package, Plus, Settings2, ShoppingBag,
   Sparkles, Store, Users, Wallet, X, Clock,
 } from "lucide-react";
 import { industries, type Industry } from "@/lib/industries";
@@ -17,6 +17,9 @@ import {
 } from "./actions";
 import { DeleteBusinessForm } from "./delete-business-form";
 import { ModuleWorkspace } from "./module-workspace";
+import { ThemeSelector } from "./theme-toggle";
+import { Dashboard, useDashboardPrefs } from "./dashboard-widgets";
+import type { LayoutDensity, Theme } from "@/lib/user-preferences";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
 type BusinessRecord = { id: string; module_slug: string; title: string; description: string; status: "open" | "in_progress" | "completed" | "cancelled"; amount: number | null; quantity: number | null; due_date: string | null; category: string; reference: string; metadata: Record<string, unknown>; created_at: string };
@@ -65,9 +68,7 @@ const sectionTitles: Record<string, { title: string; description: string }> = {
   settings: { title: "Configuración", description: "Administrá tu espacio, tus módulos y tu perfil." },
 };
 
-sectionTitles.subscription = { title: "SuscripciÃ³n", description: "ConocÃ© tu plan, uso y opciones de crecimiento." };
-
-sectionTitles.subscription = { title: "SuscripciÃ³n", description: "ConocÃ© tu plan, uso y opciones de crecimiento." };
+sectionTitles.subscription = { title: "Suscripción", description: "Conocé tu plan, uso y opciones de crecimiento." };
 
 const moduleIcons: Record<string, typeof ShoppingBag> = {
   sales: ShoppingBag, customers: Users, services: BriefcaseBusiness, appointments: CalendarDays,
@@ -81,10 +82,10 @@ function NavLink({ id, label, icon: Icon, active, onClick }: {
 }) {
   return (
     <Link href={`/app?section=${id}`} onClick={onClick}
-      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-[#eaf4ee] text-[#176b4f]" : "text-[#65736b] hover:bg-[#f3f6f4] hover:text-[#263b30]"}`}>
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-[var(--accent-light)] text-[var(--accent)]" : "text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground-secondary)]"}`}>
       <Icon size={18} strokeWidth={active ? 2.2 : 1.8}/>
       <span>{label}</span>
-      {active && <span className="ml-auto size-1.5 rounded-full bg-[#19805c]"/>}
+      {active && <span className="ml-auto size-1.5 rounded-full bg-[var(--accent)]"/>}
     </Link>
   );
 }
@@ -106,103 +107,113 @@ export function AppShell(props: Props) {
     if (props.section === "operations") return !["customers", "suppliers", "projects", "time_tracking", "appointments", "tasks", "proposals"].includes(module.slug);
     return true;
   });
+  const today = getTodayInBuenosAires(new Date());
+  const overdue = getOverdueRecords(props.allRecords, today);
 
   const sidebar = (
     <div className="flex h-full flex-col">
-      <div className="flex h-[76px] items-center justify-between border-b border-[#edf0ee] px-5">
+      <div className="flex h-[76px] items-center justify-between border-b border-[var(--line-light)] px-5">
         <Link href="/app" className={`flex items-center gap-3 overflow-hidden ${collapsed ? "lg:justify-center" : ""}`}>
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#176b4f] text-white"><BarChart3 size={21}/></span>
-          {!collapsed && <span className="whitespace-nowrap text-xl font-bold tracking-tight text-[#1c2c24]">métrica<span className="text-[#176b4f]">sur</span></span>}
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white"><BarChart3 size={21}/></span>
+          {!collapsed && <span className="whitespace-nowrap text-xl font-bold tracking-tight text-[var(--foreground-secondary)]">métrica<span className="text-[var(--accent)]">sur</span></span>}
         </Link>
-        <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-[#718078] hover:bg-[#f2f5f3] lg:hidden" aria-label="Cerrar menú"><X size={19}/></button>
+        <button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)] lg:hidden" aria-label="Cerrar menú"><X size={19}/></button>
       </div>
 
-      <div className="border-b border-[#edf0ee] p-3">
-        <button onClick={() => setBusinessExpanded(!businessExpanded)} className="flex w-full items-center gap-3 rounded-xl border border-[#e7ece9] p-3 text-left hover:bg-[#f8faf8]">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#edf5f0] text-[#176b4f]"><Store size={18}/></span>
+      <div className="border-b border-[var(--line-light)] p-3">
+        <button onClick={() => setBusinessExpanded(!businessExpanded)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:bg-[var(--surface-hover)]">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-light)] text-[var(--accent)]"><Store size={18}/></span>
           {!collapsed && <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-[#263b30]">{active?.name ?? "Sin negocio"}</span>
-            <span className="block truncate text-xs text-[#89958e]">{industry.label}</span>
+            <span className="block truncate text-sm font-semibold text-[var(--foreground-secondary)]">{active?.name ?? "Sin negocio"}</span>
+            <span className="block truncate text-xs text-[var(--muted-light)]">{industry.label}</span>
           </span>}
-          {!collapsed && <ChevronDown size={16} className={`shrink-0 text-[#8b9790] transition ${businessExpanded ? "rotate-180" : ""}`}/>}
+          {!collapsed && <ChevronDown size={16} className={`shrink-0 text-[var(--muted-light)] transition ${businessExpanded ? "rotate-180" : ""}`}/>}
         </button>
-        {businessExpanded && !collapsed && <div className="mt-2 space-y-1 rounded-xl bg-[#f7f9f7] p-2">
+        {businessExpanded && !collapsed && <div className="mt-2 space-y-1 rounded-xl bg-[var(--surface-elevated)] p-2">
           {props.businesses.map((business) => <form action={switchBusiness} key={business.id}>
             <input type="hidden" name="businessId" value={business.id}/>
-            <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs text-[#5f7066] hover:bg-white">
-              <span className="truncate">{business.name}</span>{business.id === active?.id && <Check size={14} className="text-[#176b4f]"/>}
+            <button className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs text-[var(--muted-light)] hover:bg-[var(--surface)]">
+              <span className="truncate">{business.name}</span>{business.id === active?.id && <Check size={14} className="text-[var(--accent)]"/>}
             </button>
           </form>)}
-          <Link href="/app?section=settings" className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#176b4f]"><Plus size={14}/> Crear o administrar espacios</Link>
+          <Link href="/app?section=settings" className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[var(--accent)]"><Plus size={14}/> Crear o administrar espacios</Link>
         </div>}
       </div>
 
       <nav className="min-h-0 flex-1 space-y-6 overflow-y-auto px-3 py-5">
         {navGroups.map((group) => <div key={group.title}>
-          {!collapsed && <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[#9aa59e]">{group.title}</p>}
+          {!collapsed && <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)]">{group.title}</p>}
           <div className="space-y-1">{group.items.map((item) =>
             <NavLink key={item.id} {...item} active={props.section === item.id} onClick={() => setMobileOpen(false)}/>)}</div>
         </div>)}
         <div>
-          <button onClick={() => setModulesExpanded(!modulesExpanded)} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[#9aa59e] hover:text-[#52645a] ${collapsed ? "justify-center" : ""}`}>
-            {!collapsed && <><span className="flex-1 text-left">Módulos activos</span><span className="rounded-full bg-[#edf2ee] px-2 py-0.5 text-[10px]">{activeCount}</span><ChevronDown size={14} className={modulesExpanded ? "rotate-180" : ""}/></>}
+          <button onClick={() => setModulesExpanded(!modulesExpanded)} className={`mb-2 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--muted-light)] hover:text-[var(--muted)] ${collapsed ? "justify-center" : ""}`}>
+            {!collapsed && <><span className="flex-1 text-left">Módulos activos</span><span className="rounded-full bg-[var(--line-light)] px-2 py-0.5 text-[10px]">{activeCount}</span><ChevronDown size={14} className={modulesExpanded ? "rotate-180" : ""}/></>}
             {collapsed && <Package size={17}/>}
           </button>
           {modulesExpanded && <div className="space-y-1">{enabledModuleList.map((module) => {
             const Icon = moduleIcons[module.slug] ?? Package;
             return <NavLink key={module.slug} id={module.slug} label={module.name} icon={Icon} active={props.section === module.slug} onClick={() => setMobileOpen(false)}/>;
           })}</div>}
-          {!enabledModuleList.length && !collapsed && <p className="px-3 py-2 text-xs text-[#9aa59e]">Todavía no hay módulos activos.</p>}
+          {!enabledModuleList.length && !collapsed && <p className="px-3 py-2 text-xs text-[var(--muted-light)]">Todavía no hay módulos activos.</p>}
         </div>
-        <div className="border-t border-[#edf0ee] pt-4">
-          <NavLink id="subscription" label="SuscripciÃ³n" icon={CreditCard} active={props.section === "subscription"} onClick={() => setMobileOpen(false)}/>
+        <div className="border-t border-[var(--line-light)] pt-4">
+          <NavLink id="subscription" label="Suscripción" icon={CreditCard} active={props.section === "subscription"} onClick={() => setMobileOpen(false)}/>
           <NavLink id="assistant" label="Asistente IA" icon={Sparkles} active={props.section === "assistant"} onClick={() => setMobileOpen(false)}/>
           <NavLink id="settings" label="Configuración" icon={Settings2} active={props.section === "settings"} onClick={() => setMobileOpen(false)}/>
         </div>
       </nav>
 
-      <div className="border-t border-[#edf0ee] p-3">
+      <div className="border-t border-[var(--line-light)] p-3">
         <div className={`flex items-center gap-3 rounded-xl p-2 ${collapsed ? "justify-center" : ""}`}>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#eaf2ed] text-sm font-bold text-[#176b4f]">{props.firstName.slice(0,1).toUpperCase()}</span>
-          {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[#33463a]">{props.firstName}</span><span className="block truncate text-[11px] text-[#8b9790]">{props.email}</span></span>}
-          <form action={signOut}><button aria-label="Cerrar sesión" className="rounded-lg p-2 text-[#829087] hover:bg-[#f2f5f3] hover:text-[#176b4f]"><LogOut size={16}/></button></form>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{props.firstName.slice(0,1).toUpperCase()}</span>
+          {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[var(--foreground-secondary)]">{props.firstName}</span><span className="block truncate text-[11px] text-[var(--muted-light)]">{props.email}</span></span>}
+          <ThemeSelector />
+          <form action={signOut}><button aria-label="Cerrar sesión" className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)]"><LogOut size={16}/></button></form>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f6f8f7] text-[#1e2d25]">
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-[#e7ece9] bg-white transition-all duration-200 lg:block ${collapsed ? "w-[84px]" : "w-[272px]"}`}>
+    <div className="min-h-screen bg-[var(--background-secondary)] text-[var(--foreground-secondary)]">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden border-r border-[var(--line)] bg-[var(--surface)] transition-all duration-200 lg:block ${collapsed ? "w-[84px]" : "w-[272px]"}`}>
         {sidebar}
-        <button onClick={() => setCollapsed(!collapsed)} className="absolute -right-3 top-[88px] flex size-7 items-center justify-center rounded-full border border-[#e2e9e4] bg-white text-[#718078] shadow-sm hover:text-[#176b4f]" aria-label={collapsed ? "Expandir menú" : "Contraer menú"}>{collapsed ? <ChevronRight size={15}/> : <ChevronLeft size={15}/>}</button>
+        <button onClick={() => setCollapsed(!collapsed)} className="absolute -right-3 top-[88px] flex size-7 items-center justify-center rounded-full border border-[var(--line-light)] bg-[var(--surface)] text-[var(--muted-light)] shadow-sm hover:text-[var(--accent)]" aria-label={collapsed ? "Expandir menú" : "Contraer menú"}>{collapsed ? <ChevronRight size={15}/> : <ChevronLeft size={15}/>}</button>
       </aside>
 
       {mobileOpen && <div className="fixed inset-0 z-50 lg:hidden">
-        <button className="absolute inset-0 bg-[#17251d]/35" onClick={() => setMobileOpen(false)} aria-label="Cerrar menú"/>
-        <aside className="absolute inset-y-0 left-0 w-[min(88vw,320px)] bg-white shadow-2xl">{sidebar}</aside>
+        <button className="absolute inset-0 bg-[var(--foreground-secondary)]/20" onClick={() => setMobileOpen(false)} aria-label="Cerrar menú"/>
+        <aside className="absolute inset-y-0 left-0 w-[min(88vw,320px)] bg-[var(--surface)] shadow-2xl">{sidebar}</aside>
       </div>}
 
       <div className={`min-h-screen transition-all duration-200 ${collapsed ? "lg:pl-[84px]" : "lg:pl-[272px]"}`}>
-        <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[#e9eeeb] bg-white/95 px-4 backdrop-blur sm:px-7 lg:px-9">
+        <header className="sticky top-0 z-30 flex h-[76px] items-center justify-between border-b border-[var(--line)] bg-[var(--surface)]/95 px-4 backdrop-blur sm:px-7 lg:px-9">
           <div className="flex items-center gap-3">
-            <button onClick={() => setMobileOpen(true)} className="rounded-xl p-2 text-[#52645a] hover:bg-[#f1f5f2] lg:hidden" aria-label="Abrir menú"><Menu size={21}/></button>
-            <div><p className="text-sm font-semibold text-[#263b30]">{page.title}</p><p className="hidden text-xs text-[#8b9790] sm:block">{active?.name ?? "Tu espacio de trabajo"}</p></div>
+            <button onClick={() => setMobileOpen(true)} className="rounded-xl p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)] lg:hidden" aria-label="Abrir menú"><Menu size={21}/></button>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-[var(--foreground-secondary)]">{page.title}</p>
+              <div className="flex items-center gap-1 text-[10px] text-[var(--muted-light)]">
+                <span>Inicio</span><span className="text-[var(--muted-light)]">›</span><span>{props.activeBusiness?.name ?? "Tu espacio de trabajo"}</span>
+                {props.section !== "home" && <><span className="text-[var(--muted-light)]">›</span><span>{page.title}</span></>}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="hidden rounded-full bg-[#edf5f0] px-3 py-1.5 text-xs font-medium text-[#347253] sm:inline-flex">{industry.label}</span>
-            <Link href="/app?section=reports" className="rounded-xl p-2.5 text-[#748279] hover:bg-[#f2f5f3]" aria-label="Ir a informes" title="Informes"><Bell size={18}/></Link>
-            <span className="flex size-9 items-center justify-center rounded-full bg-[#eaf2ed] text-sm font-bold text-[#176b4f]">{props.firstName.slice(0,1).toUpperCase()}</span>
+            <span className="hidden rounded-full bg-[var(--accent-light)] px-3 py-1.5 text-xs font-medium text-[var(--accent)] sm:inline-flex">{industry.label}</span>
+            {overdue.length > 0 && <Link href="/app?section=reports" className="relative rounded-xl p-2.5 text-[var(--error)] hover:bg-[var(--error-light)]" aria-label="Ver registros vencidos" title="Registros vencidos"><AlertTriangle size={18}/><span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[var(--error)] text-white text-[10px] font-bold">{overdue.length}</span></Link>}
+            <Link href="/app?section=reports" className="rounded-xl p-2.5 text-[var(--muted-light)] hover:bg-[var(--surface-hover)]" aria-label="Ir a informes" title="Informes"><Bell size={18}/></Link>
+            <span className="flex size-9 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{props.firstName.slice(0,1).toUpperCase()}</span>
           </div>
         </header>
 
         <main className="mx-auto max-w-[1440px] px-4 py-7 sm:px-7 sm:py-9 lg:px-9">
-          {props.notices.error && <p role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{props.notices.error}</p>}
-          {props.notices.dataIssue && <p role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">{props.notices.dataIssue} No vamos a mostrar estas secciones como si estuvieran vacías.</p>}
-          {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] px-4 py-3 text-sm text-[#24513f]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
+          {props.notices.error && <p role="alert" className="mb-5 rounded-xl border border-[var(--error-light)] bg-[var(--error-light)]/50 px-4 py-3 text-sm text-[var(--error)]">{props.notices.error}</p>}
+          {props.notices.dataIssue && <p role="alert" className="mb-5 rounded-xl border border-[var(--warning-light)] bg-[var(--warning-light)]/50 px-4 py-3 text-sm leading-6 text-[var(--warning)]">{props.notices.dataIssue} No vamos a mostrar estas secciones como si estuvieran vacías.</p>}
+          {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[var(--success-light)] bg-[var(--success-light)]/50 px-4 py-3 text-sm text-[var(--success)]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
 
           {!active ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
-            <Dashboard firstName={props.firstName} business={active} industry={industry} modules={enabledModuleList.length} records={props.allRecords}/>
+            <Dashboard firstName={props.firstName} business={active} industry={industry} records={props.allRecords}/>
           ) : props.section === "settings" ? (
             <SettingsView {...props} industry={industry} isManager={isManager}/>
           ) : props.section === "assistant" ? (
@@ -222,63 +233,26 @@ export function AppShell(props: Props) {
   );
 }
 
-function Dashboard({ firstName, business, industry, modules, records }: { firstName: string; business: Business; industry: (typeof industries)[Industry]; modules: number; records: BusinessRecord[] }) {
-  return <div className="space-y-7">
-    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-      <div><p className="text-sm font-medium text-[#718078]">Tu resumen de hoy</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#20352a] sm:text-[34px]">¡Hola, {firstName}! <span className="text-2xl">👋</span></h1><p className="mt-2 max-w-2xl text-sm leading-6 text-[#78867e]">Este es el punto de partida para organizar {business.name.toLowerCase()}. Vamos paso a paso.</p></div>
-      <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#e2eae4] bg-white px-3 py-2 text-xs font-medium text-[#5e7567]"><span className="size-2 rounded-full bg-[#41a477]"/> Espacio activo</span>
-    </div>
-
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard icon={Store} label="Rubro" value={industry.label} note="Espacio configurado"/>
-      <StatCard icon={Package} label="Registros" value={String(records.length)} note="Operaciones guardadas"/>
-      <StatCard icon={ClipboardList} label="Pendientes" value={String(records.filter((r) => r.status === "open" || r.status === "in_progress").length)} note="Requieren seguimiento"/>
-      <StatCard icon={Sparkles} label="Módulos activos" value={String(modules)} note="Herramientas habilitadas"/>
-    </div>
-
-    <div className="grid gap-5 xl:grid-cols-[1.45fr_.85fr]">
-      <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7">
-        <div className="flex items-center justify-between"><div><h2 className="text-base font-semibold text-[#2b4034]">Tu espacio de trabajo</h2><p className="mt-1 text-xs text-[#89958e]">Una base clara para empezar a gestionar.</p></div><span className="rounded-lg bg-[#edf5f0] p-2 text-[#347253]"><LayoutDashboard size={18}/></span></div>
-        <div className="mt-6 rounded-xl bg-[#f7faf8] p-5 sm:p-6">
-          <div className="flex items-start gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#e6f2eb] text-[#28734f]"><Check size={20}/></span><div><h3 className="text-sm font-semibold text-[#33483b]">Tu negocio ya tiene una estructura inicial</h3><p className="mt-1 text-sm leading-6 text-[#77857d]">Configuramos las herramientas recomendadas para {industry.label.toLowerCase()}. Podés ajustar los módulos cuando lo necesites.</p><Link href="/app?section=settings" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-[#176b4f] hover:underline">Revisar configuración <ArrowRight size={15}/></Link></div></div>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <QuickLink href="/app?section=operations" icon={Store} title="Ver operaciones" description="Accedé a tus herramientas activas"/>
-          <QuickLink href="/app?section=organization" icon={ClipboardList} title="Organizar trabajo" description="Tareas, proyectos y agenda"/>
-        </div>
-      </section>
-      <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7">
-        <div className="flex items-center gap-2"><Activity size={18} className="text-[#28734f]"/><h2 className="text-base font-semibold text-[#2b4034]">Actividad reciente</h2></div>
-        {records.length ? <div className="mt-5 space-y-3">{records.slice(0,5).map((record) => <div key={record.id} className="flex items-center justify-between gap-3 border-b border-[#edf0ee] pb-3 last:border-0"><div className="min-w-0"><p className="truncate text-sm font-medium text-[#405448]">{record.title}</p><p className="text-[11px] text-[#89958e]">{moduleCatalog.find((m) => m.slug === record.module_slug)?.name ?? record.module_slug} · {new Date(record.created_at).toLocaleDateString("es-AR")}</p></div><span className="shrink-0 text-[10px] font-semibold text-[#397552]">{record.status === "completed" ? "Completado" : record.status === "in_progress" ? "En curso" : record.status === "cancelled" ? "Cancelado" : "Pendiente"}</span></div>)}<Link href="/app?section=reports" className="inline-flex text-xs font-semibold text-[#176b4f] hover:underline">Ver informes <ArrowRight size={13}/></Link></div> : <div className="flex min-h-[190px] flex-col items-center justify-center py-8 text-center"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#f0f5f1] text-[#7e9b88]"><ArrowDownLeft size={22}/></span><p className="mt-4 text-sm font-semibold text-[#46594d]">Todavía no hay actividad</p><p className="mt-1 max-w-[230px] text-xs leading-5 text-[#8b9790]">Creá registros en tus módulos y aparecerán acá.</p><Link href="/app?section=operations" className="mt-3 text-xs font-semibold text-[#176b4f]">Ir a operaciones →</Link></div>}
-      </section>
-    </div>
-
-    <section className="rounded-2xl border border-[#dce9e0] bg-gradient-to-r from-[#edf6f0] to-white p-5 sm:p-7">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#28734f]"><Sparkles size={20}/></span><div><h2 className="text-sm font-semibold text-[#2d4938]">MétricaSur se adapta a tu negocio</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[#74857a]">{industry.description} Vamos a ir incorporando herramientas específicas para que puedas gestionar sin complicarte.</p></div></div><Link href="/app?section=settings" className="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-[#176b4f] hover:underline">Personalizar <ArrowUpRight size={16}/></Link></div>
-    </section>
-  </div>;
-}
-
 function StatCard({ icon: Icon, label, value, note }: { icon: typeof Store; label: string; value: string; note: string }) {
-  return <div className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><div className="flex items-center justify-between"><span className="text-xs font-medium text-[#85928a]">{label}</span><Icon size={18} className="text-[#83a18e]"/></div><p className="mt-4 truncate text-xl font-semibold text-[#2d4235]">{value}</p><p className="mt-1 text-xs text-[#96a199]">{note}</p></div>;
-}
-
-function QuickLink({ href, icon: Icon, title, description }: { href: string; icon: typeof Store; title: string; description: string }) {
-  return <Link href={href} className="group flex items-center gap-3 rounded-xl border border-[#e8ede9] p-4 transition hover:border-[#c8dbce] hover:bg-[#fbfdfb]"><span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#f0f5f1] text-[#558267]"><Icon size={18}/></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-[#3b5143]">{title}</span><span className="mt-1 block text-xs text-[#89958e]">{description}</span></span><ArrowRight size={16} className="text-[#a0aaa3] transition group-hover:translate-x-0.5 group-hover:text-[#28734f]"/></Link>;
+  return <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><div className="flex items-center justify-between"><span className="text-xs font-medium text-[var(--muted-light)]">{label}</span><Icon size={18} className="text-[var(--muted-light)]"/></div><p className="mt-4 truncate text-xl font-semibold text-[var(--foreground-secondary)]">{value}</p><p className="mt-1 text-xs text-[var(--muted-light)]">{note}</p></div>;
 }
 
 function ModuleCollection({ title, description, modules }: { title: string; description: string; modules: typeof moduleCatalog }) {
-  return <div className="space-y-6"><div><h1 className="text-2xl font-semibold tracking-tight text-[#263b30]">{title}</h1><p className="mt-2 text-sm text-[#7d8a82]">{description}</p></div>
-    {modules.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{modules.map((module) => { const Icon = moduleIcons[module.slug] ?? Package; return <Link key={module.slug} href={`/app?section=${module.slug}`} className="group rounded-2xl border border-[#e5ebe7] bg-white p-5 transition hover:-translate-y-0.5 hover:border-[#c8dbce] hover:shadow-sm"><div className="flex items-center justify-between"><span className="flex size-10 items-center justify-center rounded-xl bg-[#edf5f0] text-[#397552]"><Icon size={19}/></span><ArrowUpRight size={17} className="text-[#a0aaa3] group-hover:text-[#28734f]"/></div><h2 className="mt-4 text-sm font-semibold text-[#354a3b]">{module.name}</h2><p className="mt-1 text-xs leading-5 text-[#839087]">{module.description}</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#397552]">Ver módulo <ArrowRight size={13}/></span></Link>; })}</div> : <EmptyModules/>}
+  return <div className="space-y-6"><div><h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground-secondary)]">{title}</h1><p className="mt-2 text-sm text-[var(--muted-light)]">{description}</p></div>
+    {modules.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{modules.map((module) => { const Icon = moduleIcons[module.slug] ?? Package; return <Link key={module.slug} href={`/app?section=${module.slug}`} className="group rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:border-[var(--line-light)] hover:shadow-[var(--shadow)]"><div className="flex items-center justify-between"><span className="flex size-10 items-center justify-center rounded-xl bg-[var(--accent-light)] text-[var(--accent)]"><Icon size={19}/></span><ArrowUpRight size={17} className="text-[var(--muted-light)] group-hover:text-[var(--accent)]"/></div><h2 className="mt-4 text-sm font-semibold text-[var(--foreground-secondary)]">{module.name}</h2><p className="mt-1 text-xs leading-5 text-[var(--muted-light)]">{module.description}</p><span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent)]">Ver módulo <ArrowRight size={13}/></span></Link>; })}</div> : <EmptyModules/>}
   </div>;
 }
 
 function ReportsView({ records, industry, plan }: { records: BusinessRecord[]; industry: (typeof industries)[Industry]; plan: SubscriptionPlan }) {
   const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+  const today = getTodayInBuenosAires(new Date());
+  const startOfMonth = `${today.slice(0, 7)}-01`;
+  const thisMonth = records.filter((r) => r.created_at.startsWith(startOfMonth));
   const totalAmount = records.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+  const monthlyAmount = thisMonth.reduce((sum, r) => sum + (r.amount ?? 0), 0);
   const pending = getPendingRecords(records);
-  const overdue = getOverdueRecords(records, getTodayInBuenosAires());
-  const byModule = moduleCatalog.map((m) => ({ ...m, count: records.filter((r) => r.module_slug === m.slug).length })).filter((m) => m.count).sort((a,b) => b.count-a.count);
+  const overdue = getOverdueRecords(records, today);
+  const byModule = moduleCatalog.map((m) => ({ ...m, count: records.filter((r) => r.module_slug === m.slug).length })).filter((m) => m.count).sort((a, b) => b.count - a.count);
   const completionRate = getCompletionRate(records.map((r) => ({ status: r.status })));
   const amountBreakdown = getOperationalAmountBreakdown(records.map((r) => ({ module_slug: r.module_slug, amount: r.amount })));
   const advancedAnalytics = plan.analytics === "advanced";
@@ -290,17 +264,18 @@ function ReportsView({ records, industry, plan }: { records: BusinessRecord[]; i
     const url = URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
     const a = document.createElement("a"); a.href=url; a.download="metricasur-informe.csv"; a.click(); URL.revokeObjectURL(url);
   };
-  return <div className="space-y-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Análisis del negocio</p><h1 className="mt-2 text-2xl font-semibold text-[#263b30]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[#7d8a82]">Estadísticas calculadas a partir de tus registros guardados.</p></div><button onClick={exportCsv} disabled={!records.length} className="rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Exportar CSV</button></div>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={Activity} label="Pendientes" value={String(pending.length)} note="Abiertos o en curso"/><StatCard icon={CalendarDays} label="Vencidos" value={String(overdue.length)} note="Requieren atención"/><StatCard icon={Wallet} label="Importes cargados" value={money.format(totalAmount)} note="Suma de importes registrados"/>
-  {completionRate !== null ? (
-    <StatCard icon={CheckSquare} label="Tasa de cumplimiento" value={completionRate.toFixed(1) + "%"} note="Completado sobre no cancelados"/>
-  ) : (
-    <StatCard icon={Clock} label="Tasa de cumplimiento" value="N/D" note="No hay registros no cancelados"/>
-  )}</div>
-    <div className="grid gap-5 xl:grid-cols-2"><section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Actividad por módulo</h2>{byModule.length ? <div className="mt-4 space-y-4">{byModule.map((m) => <div key={m.slug}><div className="mb-1 flex justify-between text-xs"><span className="font-medium text-[#52645a]">{m.name}</span><span className="text-[#839087]">{m.count}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#edf2ee]"><div className="h-full rounded-full bg-[#39805b]" style={{width:`${Math.max(4,m.count/records.length*100)}%`}}/></div></div>)}</div> : <p className="mt-4 text-sm text-[#89958e]">Todavía no hay datos para analizar. Empezá creando registros en tus módulos.</p>}</section>
-    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Distribución por estado</h2><div className="mt-4 space-y-3">{[["Pendiente",records.filter(r=>r.status==="open").length],["En curso",records.filter(r=>r.status==="in_progress").length],["Completado",records.filter(r=>r.status==="completed").length],["Cancelado",records.filter(r=>r.status==="cancelled").length]].map(([label,count])=><div key={String(label)} className="flex items-center justify-between rounded-lg bg-[#f7faf8] px-3 py-2 text-sm"><span className="text-[#52645a]">{label}</span><strong className="text-[#304638]">{count}</strong></div>)}</div></section></div>
-    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Importes por módulo</h2>{Object.keys(amountBreakdown).length ? <div className="mt-4 divide-y divide-[#edf0ee]">{Object.entries(amountBreakdown).map(([slug, data]) => <div key={slug} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-[#52645a]">{moduleCatalog.find((m) => m.slug === slug)?.name ?? slug}<span className="ml-2 text-xs text-[#89958e]">({data.count} registros)</span></span><span className="text-right"><strong className="block text-[#304638]">{money.format(data.total)}</strong><span className="text-xs text-[#89958e]">Promedio {money.format(data.average)}</span></span></div>)}</div> : <p className="mt-3 text-sm text-[#89958e]">No hay importes cargados para agrupar.</p>}</section>
-    <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5"><h2 className="font-semibold text-[#304638]">Próximas fechas y atrasos</h2>{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).length ? <div className="mt-3 divide-y divide-[#edf0ee]">{records.filter(r=>r.due_date && r.status!=="completed" && r.status!=="cancelled").sort((a,b)=>(a.due_date??"").localeCompare(b.due_date??"")).slice(0,8).map(r=><div key={r.id} className="flex justify-between gap-3 py-3 text-sm"><span className="min-w-0 truncate text-[#52645a]">{r.title}</span><span className="shrink-0 text-xs text-[#839087]">{new Date((r.due_date??"")+"T12:00:00").toLocaleDateString("es-AR")}</span></div>)}</div> : <p className="mt-3 text-sm text-[#89958e]">No hay fechas pendientes registradas.</p>}</section>
+  const statusCounts = { open: records.filter((r) => r.status === "open").length, in_progress: records.filter((r) => r.status === "in_progress").length, completed: records.filter((r) => r.status === "completed").length, cancelled: records.filter((r) => r.status === "cancelled").length };
+  return <div className="space-y-6"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Análisis del negocio</p><h1 className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[var(--muted-light)]">Estadísticas calculadas a partir de tus registros guardados.</p></div><button onClick={exportCsv} disabled={!records.length} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Exportar CSV</button></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note={thisMonth.length ? `${thisMonth.length} este mes` : "Sin actividad este mes"}/><StatCard icon={Activity} label="Pendientes" value={String(pending.length)} note="Abiertos o en curso"/><StatCard icon={CalendarDays} label="Vencidos" value={String(overdue.length)} note={overdue.length > 0 ? "Requieren atención" : "Sin atrasos"}/><StatCard icon={Wallet} label="Importes" value={money.format(totalAmount)} note={thisMonth.length ? `Este mes: ${money.format(monthlyAmount)}` : "Sin importes este mes"}/>
+    {completionRate !== null ? (
+      <StatCard icon={CheckSquare} label="Tasa de cumplimiento" value={completionRate.toFixed(0) + "%"} note="Completado sobre no cancelados"/>
+    ) : (
+      <StatCard icon={Clock} label="Tasa de cumplimiento" value="N/D" note="No hay registros no cancelados"/>
+    )}</div>
+    <div className="grid gap-5 xl:grid-cols-2"><section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><h2 className="font-semibold text-[var(--foreground-secondary)]">Actividad por módulo</h2>{byModule.length ? <div className="mt-4 space-y-3">{byModule.slice(0, 6).map((m) => <div key={m.slug} className="flex items-center justify-between gap-3"><div className="min-w-0 flex-1"><p className="text-xs font-medium text-[var(--muted-light)]">{m.name}</p><p className="text-[10px] text-[var(--muted-light)]">{m.count} registro{m.count !== 1 ? "s" : ""}</p></div><div className="shrink-0 w-24 h-2 overflow-hidden rounded-full bg-[var(--line-light)]"><div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${Math.max(4, (m.count / records.length) * 100)}%` }}/></div><span className="shrink-0 text-xs font-semibold text-[var(--foreground-secondary)]">{m.count}</span></div>)}</div> : <p className="mt-4 text-sm text-[var(--muted-light)]">Todavía no hay datos para analizar. Empezá creando registros en tus módulos.</p>}</section>
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><h2 className="font-semibold text-[var(--foreground-secondary)]">Distribución por estado</h2><div className="mt-4 grid gap-2 sm:grid-cols-2">{Object.entries(statusCounts).map(([label, count]) => { const statusKey = label as keyof typeof statusLabels; return <div key={label} className="flex items-center justify-between rounded-lg bg-[var(--surface-elevated)] px-3 py-2 text-sm"><span className="text-[var(--muted-light)]">{statusLabels[statusKey]}</span><span className="flex items-center gap-1.5"><strong className="text-[var(--foreground-secondary)]">{count}</strong><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusStyles[statusKey]}`}>{statusLabels[statusKey]}</span></span></div>; })}</div></section></div>
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><h2 className="font-semibold text-[var(--foreground-secondary)]">Importes por módulo</h2>{Object.keys(amountBreakdown).length ? <div className="mt-4 divide-y divide-[var(--line-light)]">{Object.entries(amountBreakdown).map(([slug, data]) => <div key={slug} className="flex items-center justify-between gap-3 py-3 text-sm"><span className="text-[var(--muted-light)]">{moduleCatalog.find((m) => m.slug === slug)?.name ?? slug}<span className="ml-2 text-xs text-[var(--muted-light)]">({data.count} registros)</span></span><span className="text-right"><strong className="block text-[var(--foreground-secondary)]">{money.format(data.total)}</strong><span className="text-xs text-[var(--muted-light)]">Promedio {money.format(data.average)}</span></span></div>)}</div> : <p className="mt-3 text-sm text-[var(--muted-light)]">No hay importes cargados para agrupar.</p>}</section>
+    <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5"><h2 className="font-semibold text-[var(--foreground-secondary)]">Próximas fechas y atrasos</h2>{records.filter((r) => r.due_date && r.status !== "completed" && r.status !== "cancelled").sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? "")).slice(0, 8).length ? <div className="mt-3 divide-y divide-[var(--line-light)]">{records.filter((r) => r.due_date && r.status !== "completed" && r.status !== "cancelled").sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? "")).slice(0, 8).map((r) => <div key={r.id} className="flex justify-between gap-3 py-3 text-sm"><span className="min-w-0 truncate text-[var(--muted-light)]">{r.title}</span><span className={`shrink-0 text-xs font-semibold ${new Date((r.due_date ?? "") + "T12:00:00") < new Date(today + "T12:00:00") ? "text-[var(--error)]" : "text-[var(--muted-light)]"}`}>{new Date((r.due_date ?? "") + "T12:00:00").toLocaleDateString("es-AR")}</span></div>)}</div> : <p className="mt-3 text-sm text-[var(--muted-light)]">No hay fechas pendientes registradas.</p>}</section>
   </div>;
 }
 
@@ -308,17 +283,17 @@ function BasicReportsView({ records, industry }: { records: BusinessRecord[]; in
   const completed = records.filter((record) => record.status === "completed").length;
   const pending = getPendingRecords(records).length;
   const completionRate = getCompletionRate(records.map((record) => ({ status: record.status })));
-  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8]">Resumen operativo</p><h1 className="mt-2 text-2xl font-semibold text-[#F1F5F9]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[#94A3B8]">Métricas esenciales del negocio seleccionado.</p></div><div className="grid gap-4 sm:grid-cols-3"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={CheckSquare} label="Completados" value={String(completed)} note="Registros terminados"/><StatCard icon={Activity} label="Pendientes" value={String(pending)} note="Abiertos o en curso"/></div><section className="rounded-2xl border border-[#263445] bg-[#151E29] p-6"><h2 className="font-semibold text-[#F1F5F9]">Tasa de cumplimiento</h2><p className="mt-3 text-3xl font-semibold text-[#38BDF8]">{completionRate === null ? "N/D" : `${completionRate.toFixed(1)}%`}</p><p className="mt-2 text-sm text-[#94A3B8]">El análisis avanzado y los importes por módulo están disponibles desde Pro.</p></section></div>;
+  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Resumen operativo</p><h1 className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">Informes de {industry.label.toLowerCase()}</h1><p className="mt-1 text-sm text-[var(--muted-light)]">Métricas esenciales del negocio seleccionado.</p></div><div className="grid gap-4 sm:grid-cols-3"><StatCard icon={ClipboardList} label="Registros" value={String(records.length)} note="Total almacenado"/><StatCard icon={CheckSquare} label="Completados" value={String(completed)} note="Registros terminados"/><StatCard icon={Activity} label="Pendientes" value={String(pending)} note="Abiertos o en curso"/></div><section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6"><h2 className="font-semibold text-[var(--foreground-secondary)]">Tasa de cumplimiento</h2><p className="mt-3 text-3xl font-semibold text-[var(--accent)]">{completionRate === null ? "N/D" : `${completionRate.toFixed(1)}%`}</p><p className="mt-2 text-sm text-[var(--muted-light)]">El análisis avanzado y los importes por módulo están disponibles desde Pro.</p></section></div>;
 }
 
 function SubscriptionView({ subscription }: { subscription: Props["subscription"] }) {
   const current = subscription.plan;
-  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8]">MétricaSur Plans</p><h1 className="mt-2 text-2xl font-semibold text-[#F1F5F9]">Tu suscripción</h1><p className="mt-1 text-sm text-[#94A3B8]">Capacidad clara para que sepas qué incluye tu plan y cuándo conviene crecer.</p></div><section className="rounded-2xl border border-[#263445] bg-[#151E29] p-6"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start"><div><p className="text-sm text-[#94A3B8]">Plan actual</p><h2 className="mt-2 text-3xl font-semibold text-[#F1F5F9]">{current.name}</h2><p className="mt-2 text-sm text-[#94A3B8]">{current.description}</p></div><div className="text-left sm:text-right"><p className="text-3xl font-semibold text-[#38BDF8]">USD {current.priceUsdMonthly}<span className="text-sm font-normal text-[#94A3B8]">/mes</span></p><span className="mt-2 inline-flex rounded-full bg-[#123047] px-3 py-1 text-xs font-semibold text-[#7DD3FC]">{subscription.status === "active" ? "Activo" : subscription.status}</span></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><UsageMeter label="Registros este mes" current={subscription.monthlyRecords} limit={current.maxMonthlyRecords}/><UsageMeter label="Negocios" current={subscription.businessCount} limit={current.maxBusinesses}/></div></section><div className="grid gap-4 lg:grid-cols-3">{Object.values(subscriptionPlans).map((plan) => <article key={plan.id} className={`rounded-2xl border p-5 ${plan.id === current.id ? "border-[#38BDF8] bg-[#122331]" : "border-[#263445] bg-[#151E29]"}`}><div className="flex items-center justify-between"><h2 className="font-semibold text-[#F1F5F9]">{plan.name}</h2>{plan.id === current.id && <span className="rounded-full bg-[#123047] px-2 py-1 text-[10px] font-semibold text-[#7DD3FC]">Actual</span>}</div><p className="mt-3 text-2xl font-semibold text-[#F1F5F9]">USD {plan.priceUsdMonthly}<span className="text-xs font-normal text-[#94A3B8]">/mes</span></p><ul className="mt-5 space-y-2 text-sm text-[#94A3B8]">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#22C55E]"/>{feature}</li>)}</ul></article>)}</div><p className="text-xs text-[#64748B]">Los pagos todavía no están conectados. Los precios y límites se administran desde la configuración central de planes.</p></div>;
+  return <div className="space-y-6"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">MétricaSur Plans</p><h1 className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">Tu suscripción</h1><p className="mt-1 text-sm text-[var(--muted-light)]">Capacidad clara para que sepas qué incluye tu plan y cuándo conviene crecer.</p></div><section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6"><div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start"><div><p className="text-sm text-[var(--muted-light)]">Plan actual</p><h2 className="mt-2 text-3xl font-semibold text-[var(--foreground-secondary)]">{current.name}</h2><p className="mt-2 text-sm text-[var(--muted-light)]">{current.description}</p></div><div className="text-left sm:text-right"><p className="text-3xl font-semibold text-[var(--accent)]">USD {current.priceUsdMonthly}<span className="text-sm font-normal text-[var(--muted-light)]">/mes</span></p><span className="mt-2 inline-flex rounded-full bg-[var(--accent-light)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">{subscription.status === "active" ? "Activo" : subscription.status}</span></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><UsageMeter label="Registros este mes" current={subscription.monthlyRecords} limit={current.maxMonthlyRecords}/><UsageMeter label="Negocios" current={subscription.businessCount} limit={current.maxBusinesses}/></div></section><div className="grid gap-4 lg:grid-cols-3">{Object.values(subscriptionPlans).map((plan) => <article key={plan.id} className={`rounded-2xl border p-5 ${plan.id === current.id ? "border-[var(--accent)] bg-[var(--accent-light)]" : "border-[var(--line)] bg-[var(--surface)]"}`}><div className="flex items-center justify-between"><h2 className="font-semibold text-[var(--foreground-secondary)]">{plan.name}</h2>{plan.id === current.id && <span className="rounded-full bg-[var(--accent)] px-2 py-1 text-[10px] font-semibold text-white">Actual</span>}</div><p className="mt-3 text-2xl font-semibold text-[var(--foreground-secondary)]">USD {plan.priceUsdMonthly}<span className="text-xs font-normal text-[var(--muted-light)]">/mes</span></p><ul className="mt-5 space-y-2 text-sm text-[var(--muted-light)]">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[var(--success)]"/>{feature}</li>)}</ul></article>)}</div><p className="text-xs text-[var(--muted-light)]">Los pagos todavía no están conectados. Los precios y límites se administran desde la configuración central de planes.</p></div>;
 }
 
 function UsageMeter({ label, current, limit }: { label: string; current: number; limit: number | null }) {
   const percentage = limit === null ? 0 : Math.min(100, (current / limit) * 100);
-  return <div className="rounded-xl border border-[#263445] bg-[#111820] p-4"><div className="flex justify-between gap-3 text-sm"><span className="text-[#94A3B8]">{label}</span><span className="font-semibold text-[#F1F5F9]">{current} / {limit ?? "∞"}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#263445]"><div className="h-full rounded-full bg-[#38BDF8]" style={{ width: `${percentage}%` }}/></div></div>;
+  return <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"><div className="flex justify-between gap-3 text-sm"><span className="text-[var(--muted-light)]">{label}</span><span className="font-semibold text-[var(--foreground-secondary)]">{current} / {limit ?? "∞"}</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--line-light)]"><div className="h-full rounded-full bg-[var(--accent)]" style={{ width: `${percentage}%` }}/></div></div>;
 }
 
 function AssistantView({ records, industry }: { records: BusinessRecord[]; industry: (typeof industries)[Industry] }) {
@@ -335,7 +310,7 @@ function AssistantView({ records, industry }: { records: BusinessRecord[]; indus
     else if(/cliente|proveedor|contact/.test(q)){const matches=records.filter(r=>/cliente|proveedor|contact/.test(r.module_slug));setAnswer(`Hay ${matches.length} registro(s) de clientes/proveedores. ${matches.slice(0,5).map(r=>r.title).join(", ") || "Todavía no hay contactos cargados."}`);}
     else setAnswer(`Revisé los ${records.length} registros de ${industry.label}. Puedo resumir pendientes, vencimientos, importes y actividad. Probá preguntando "¿Qué tengo vencido?" o "¿Cuántas tareas están pendientes?"`);
   }
-  return <div className="mx-auto max-w-3xl space-y-5"><div className="rounded-2xl border border-[#e5ebe7] bg-white p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Sparkles size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[#263b30]">Asistente de negocio</h1><p className="mt-2 text-sm leading-6 text-[#7d8a82]">Ya puede consultar tus registros y responder preguntas básicas. Esta primera versión no modifica datos ni ejecuta acciones externas.</p><div className="mt-6 flex flex-wrap gap-2">{["¿Qué tengo vencido?","¿Cuántas tareas están pendientes?","¿Qué importes registré?"].map(q=><button key={q} onClick={()=>{setQuestion(q);setAnswer("");}} className="rounded-full border border-[#dce5e0] px-3 py-2 text-xs text-[#52645a] hover:bg-[#f5f8f6]">{q}</button>)}</div><form className="mt-4 space-y-3" onSubmit={e=>{e.preventDefault();ask();}}><label className="block text-xs font-semibold text-[#52645a]">Consultá sobre {industry.label.toLowerCase()}<textarea value={question} onChange={e=>setQuestion(e.target.value)} rows={3} placeholder="Ej. ¿Qué cosas necesitan atención esta semana?" className="mt-2 w-full rounded-xl border border-[#dce5e0] p-3 text-sm font-normal outline-none focus:border-[#397552]"/></label><button className="rounded-xl bg-[#176b4f] px-5 py-2.5 text-sm font-semibold text-white">Consultar mis datos</button></form>{answer&&<div role="status" className="mt-5 rounded-xl border border-[#cfe6d8] bg-[#edf6f1] p-4 text-sm leading-6 text-[#24513f]">{answer}</div>}</div><p className="text-xs leading-5 text-[#89958e]">Importante: es un asistente local basado en reglas y tus registros. Todavía no usa un modelo de IA externo.</p></div>;
+  return <div className="mx-auto max-w-3xl space-y-5"><div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-7 sm:p-10"><span className="flex size-12 items-center justify-center rounded-2xl bg-[var(--accent-light)] text-[var(--accent)]"><Sparkles size={23}/></span><h1 className="mt-5 text-2xl font-semibold text-[var(--foreground-secondary)]">Asistente de negocio</h1><p className="mt-2 text-sm leading-6 text-[var(--muted-light)]">Ya puede consultar tus registros y responder preguntas básicas. Esta primera versión no modifica datos ni ejecuta acciones externas.</p><div className="mt-6 flex flex-wrap gap-2">{["¿Qué tengo vencido?","¿Cuántas tareas están pendientes?","¿Qué importes registré?"].map(q=><button key={q} onClick={()=>{setQuestion(q);setAnswer("");}} className="rounded-full border border-[var(--line)] px-3 py-2 text-xs text-[var(--muted-light)] hover:bg-[var(--surface-hover)]">{q}</button>)}</div><form className="mt-4 space-y-3" onSubmit={e=>{e.preventDefault();ask();}}><label className="block text-xs font-semibold text-[var(--muted-light)]">Consultá sobre {industry.label.toLowerCase()}<textarea value={question} onChange={e=>setQuestion(e.target.value)} rows={3} placeholder="Ej. ¿Qué cosas necesitan atención esta semana?" className="mt-2 w-full rounded-xl border border-[var(--line)] p-3 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label><button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white">Consultar mis datos</button></form>{answer&&<div role="status" className="mt-5 rounded-xl border border-[var(--success-light)] bg-[var(--success-light)]/50 p-4 text-sm leading-6 text-[var(--success)]">{answer}</div>}</div><p className="text-xs leading-5 text-[var(--muted-light)]">Importante: es un asistente local basado en reglas y tus registros. Todavía no usa un modelo de IA externo.</p></div>;
 }
 
 const moduleGroups: { title: string; slugs: string[] }[] = [
@@ -344,30 +319,96 @@ const moduleGroups: { title: string; slugs: string[] }[] = [
   { title: "Organización", slugs: ["appointments", "projects", "time_tracking", "tasks"] },
 ];
 
+const statusLabels = { open: "Pendiente", in_progress: "En curso", completed: "Completado", cancelled: "Cancelado" };
+const statusStyles = { open: "bg-[var(--warning-light)] text-[var(--warning)]", in_progress: "bg-[var(--line-light)] text-[var(--muted-light)]", completed: "bg-[var(--success-light)] text-[var(--success)]", cancelled: "bg-[var(--line-light)] text-[var(--muted-light)]" };
+
+function ModuleRow({ slug, on, isManager, activeBusiness }: { slug: string; on: boolean; isManager: boolean; activeBusiness: { id: string } | null }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-[var(--muted-light)]">{moduleCatalog.find((m) => m.slug === slug)?.name ?? slug}</p>
+        <p className="text-[11px] text-[var(--muted-light)]">{moduleCatalog.find((m) => m.slug === slug)?.description ?? ""}</p>
+      </div>
+      {isManager && activeBusiness ? (
+        <form action={setBusinessModuleEnabled}><input type="hidden" name="businessId" value={activeBusiness.id}/><input type="hidden" name="moduleSlug" value={slug}/><input type="hidden" name="enabled" value={String(!on)}/><button className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[var(--muted-light)] hover:bg-[var(--surface-hover)]">{on ? "Desactivar" : "Activar"}</button></form>
+      ) : (
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-[var(--success-light)] text-[var(--success)]" : "bg-[var(--muted-light)]/20 text-[var(--muted-light)]"}`}>{on ? "Activo" : "Inactivo"}</span>
+      )}
+    </div>
+  );
+}
+
 function SettingsView(props: Props & { industry: (typeof industries)[Industry]; isManager: boolean }) {
-  return <div className="space-y-6"><div><h1 className="text-2xl font-semibold text-[#263b30]">Configuración</h1><p className="mt-2 text-sm text-[#7d8a82]">Todo lo importante de tu cuenta y tu negocio, en un solo lugar.</p></div>
+  const { prefs, setPrefs: updatePrefs } = useDashboardPrefs();
+  return <div className="space-y-6"><div><h1 className="text-2xl font-semibold text-[var(--foreground-secondary)]">Configuración</h1><p className="mt-2 text-sm text-[var(--muted-light)]">Todo lo importante de tu cuenta y tu negocio, en un solo lugar.</p></div>
     <div className="grid gap-5 xl:grid-cols-2">
-      <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[#304638]"><Store size={18} className="text-[#397552]"/> Tu espacio de trabajo</h2><p className="mt-1 text-xs text-[#89958e]">Nombre y rubro del negocio activo.</p>{props.activeBusiness && <div className="mt-5 rounded-xl bg-[#f7faf8] p-4"><p className="text-sm font-semibold text-[#354a3b]">{props.activeBusiness.name}</p><p className="mt-1 text-xs text-[#849087]">{props.industry.label} · {props.activeRole ?? "miembro"}</p></div>}<div className="mt-5"><h3 className="text-sm font-semibold text-[#405448]">Tus espacios</h3><div className="mt-2 space-y-2">{props.businesses.map((business) => <div key={business.id} className="flex items-center justify-between gap-3 rounded-xl border border-[#e9eeeb] p-3"><span className="min-w-0 truncate text-sm text-[#52645a]">{business.name}</span>{business.id === props.activeBusiness?.id ? <span className="shrink-0 text-[10px] font-semibold text-[#397552]">Activo</span> : <form action={switchBusiness}><input type="hidden" name="businessId" value={business.id}/><button className="text-xs font-semibold text-[#397552] hover:underline">Cambiar</button></form>}</div>)}</div></div>
-        <details className="mt-5 rounded-xl border border-[#e7ece9] p-4"><summary className="cursor-pointer text-sm font-semibold text-[#405448]">Crear otro espacio</summary><form action={createBusiness} className="mt-4 space-y-3"><label className="block text-xs font-semibold text-[#52645a]">Nombre<input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi estudio" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label><label className="block text-xs font-semibold text-[#52645a]">Rubro<select name="industry" required defaultValue="" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal"><option value="" disabled>Seleccioná un rubro</option>{Object.entries(industries).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label><button className="rounded-xl bg-[#176b4f] px-4 py-2.5 text-xs font-semibold text-white">Crear espacio</button></form></details>
-        {props.activeBusiness && props.activeRole === "owner" && <details className="mt-4 rounded-xl border border-red-200 bg-red-50/40 p-4"><summary className="cursor-pointer text-sm font-semibold text-red-800">Zona de peligro: eliminar espacio</summary><p className="mt-2 text-xs leading-5 text-red-800/80">Esta acción es permanente y elimina el espacio y sus datos asociados.</p><DeleteBusinessForm businessId={props.activeBusiness.id} businessName={props.activeBusiness.name}/></details>}
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Store size={18} className="text-[var(--accent)]"/> Tu espacio de trabajo</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Nombre y rubro del negocio activo.</p>{props.activeBusiness && <div className="mt-5 rounded-xl bg-[var(--surface-elevated)] p-4"><p className="text-sm font-semibold text-[var(--foreground-secondary)]">{props.activeBusiness.name}</p><p className="mt-1 text-xs text-[var(--muted-light)]">{props.industry.label} · {props.activeRole ?? "miembro"}</p></div>}<div className="mt-5"><h3 className="text-sm font-semibold text-[var(--foreground-secondary)]">Tus espacios</h3><div className="mt-2 space-y-2">{props.businesses.map((business) => <div key={business.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3"><span className="min-w-0 truncate text-sm text-[var(--muted-light)]">{business.name}</span>{business.id === props.activeBusiness?.id ? <span className="shrink-0 text-[10px] font-semibold text-[var(--accent)]">Activo</span> : <form action={switchBusiness}><input type="hidden" name="businessId" value={business.id}/><button className="text-xs font-semibold text-[var(--accent)] hover:underline">Cambiar</button></form>}</div>)}</div></div>
+        <details className="mt-5 rounded-xl border border-[var(--line-light)] p-4"><summary className="cursor-pointer text-sm font-semibold text-[var(--foreground-secondary)]">Crear otro espacio</summary><form action={createBusiness} className="mt-4 space-y-3"><label className="block text-xs font-semibold text-[var(--muted-light)]">Nombre<input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi estudio" className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label><label className="block text-xs font-semibold text-[var(--muted-light)]">Rubro<select name="industry" required defaultValue="" className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal"><option value="" disabled>Seleccioná un rubro</option>{Object.entries(industries).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label><button className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-xs font-semibold text-white">Crear espacio</button></form></details>
+        {props.activeBusiness && props.activeRole === "owner" && <details className="mt-4 rounded-xl border border-[var(--error-light)] bg-[var(--error-light)]/50 p-4"><summary className="cursor-pointer text-sm font-semibold text-[var(--error)]">Zona de peligro: eliminar espacio</summary><p className="mt-2 text-xs leading-5 text-[var(--error)]">Esta acción es permanente y elimina el espacio y sus datos asociados.</p><DeleteBusinessForm businessId={props.activeBusiness.id} businessName={props.activeBusiness.name}/></details>}
       </section>
-      <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[#304638]"><Package size={18} className="text-[#397552]"/> Módulos y herramientas</h2><p className="mt-1 text-xs text-[#89958e]">Mostrá solo las herramientas que realmente necesitás.</p>{props.moduleSetupMissing && props.isManager && props.activeBusiness && <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="text-sm font-semibold text-amber-900">Este espacio todavía no tiene módulos instalados</p><p className="mt-1 text-xs leading-5 text-amber-800">Podés restaurar las herramientas recomendadas para {props.industry.label.toLowerCase()}. Esto no borra ni modifica registros existentes.</p><form action={restoreRecommendedBusinessModules} className="mt-3"><input type="hidden" name="businessId" value={props.activeBusiness.id}/><button className="rounded-lg bg-[#176b4f] px-3 py-2 text-xs font-semibold text-white">Instalar módulos recomendados</button></form></div>}<div className="mt-5 space-y-3">{moduleGroups.map((group) => <details key={group.title} open className="rounded-xl border border-[#e9eeeb] p-4"><summary className="cursor-pointer text-sm font-semibold text-[#405448]">{group.title}</summary><div className="mt-3 space-y-3">{group.slugs.map((slug) => { const moduleItem = moduleCatalog.find((item) => item.slug === slug); if (!moduleItem) return null; const on = props.enabledModules[slug] ?? false; return <div key={slug} className="flex items-center justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-[#52645a]">{moduleItem.name}</p><p className="text-[11px] text-[#8b9790]">{moduleItem.description}</p></div>{props.isManager && props.activeBusiness ? <form action={setBusinessModuleEnabled}><input type="hidden" name="businessId" value={props.activeBusiness?.id ?? ""}/><input type="hidden" name="moduleSlug" value={slug}/><input type="hidden" name="enabled" value={String(!on)}/><button className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-semibold ${on ? "border border-[#dce5e0] text-[#66766c]" : "bg-[#176b4f] text-white"}`}>{on ? "Desactivar" : "Activar"}</button></form> : <span className="text-[10px] text-[#8b9790]">{on ? "Activo" : "Inactivo"}</span>}</div>; })}</div></details>)}</div><p className="mt-4 text-[11px] leading-5 text-[#89958e]">Desactivar un módulo oculta su acceso, pero no elimina sus datos.</p></section>
-      <section className="rounded-2xl border border-[#e5ebe7] bg-white p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[#304638]"><Users size={18} className="text-[#397552]"/> Tu perfil</h2><p className="mt-1 text-xs text-[#89958e]">Información de tu cuenta personal.</p><form action={updateProfile} className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-semibold text-[#52645a]">Nombre<input name="fullName" defaultValue={props.fullName} required minLength={2} maxLength={80} placeholder="Tu nombre" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label><div><p className="text-xs font-semibold text-[#52645a]">Email</p><p className="mt-1.5 rounded-xl bg-[#f6f8f7] px-3 py-2.5 text-sm text-[#718078]">{props.email}</p></div><button className="rounded-xl border border-[#dce5e0] px-4 py-2.5 text-xs font-semibold text-[#3f5a49] hover:border-[#397552]">Guardar perfil</button></form></section>
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Package size={18} className="text-[var(--accent)]"/> Módulos y herramientas</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Mostrá solo las herramientas que realmente necesitás.</p>{props.moduleSetupMissing && props.isManager && props.activeBusiness && <div className="mt-4 rounded-xl border border-[var(--warning-light)] bg-[var(--warning-light)]/50 p-4"><p className="text-sm font-semibold text-[var(--warning)]">Este espacio todavía no tiene módulos instalados</p><p className="mt-1 text-xs leading-5 text-[var(--warning)]">Podés restaurar las herramientas recomendadas para {props.industry.label.toLowerCase()}. Esto no borra ni modifica registros existentes.</p><form action={restoreRecommendedBusinessModules} className="mt-3"><input type="hidden" name="businessId" value={props.activeBusiness.id}/><button className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white">Instalar módulos recomendados</button></form></div>}<div className="mt-5 space-y-3">{moduleGroups.map((group) => <details key={group.title} open className="rounded-xl border border-[var(--line)] p-4"><summary className="cursor-pointer text-sm font-semibold text-[var(--foreground-secondary)]">{group.title}</summary><div className="mt-3 space-y-3">{group.slugs.map((slug) => { const moduleItem = moduleCatalog.find((item) => item.slug === slug); if (!moduleItem) return null; const on = props.enabledModules[slug] ?? false; return <ModuleRow key={slug} slug={slug} on={on} isManager={props.isManager} activeBusiness={props.activeBusiness}/>; })}</div></details>)}</div>
+      </section>
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Users size={18} className="text-[var(--accent)]"/> Tu perfil</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Información de tu cuenta personal.</p><form action={updateProfile} className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-semibold text-[var(--muted-light)]">Nombre<input name="fullName" defaultValue={props.fullName} required minLength={2} maxLength={80} placeholder="Tu nombre" className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label><div><p className="text-xs font-semibold text-[var(--muted-light)]">Email</p><p className="mt-1.5 rounded-xl bg-[var(--background-secondary)] px-3 py-2.5 text-sm text-[var(--muted-light)]">{props.email}</p></div><button className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-xs font-semibold text-[var(--foreground-secondary)] hover:border-[var(--accent)]">Guardar perfil</button></form></section>
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Monitor size={18} className="text-[var(--accent)]"/> Apariencia y preferencias</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Personalizá cómo se ve y se comporta MétricaSur.</p>
+        <form className="mt-5 space-y-5" onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget as HTMLFormElement);
+          const theme = fd.get("theme");
+          const density = fd.get("density");
+          updatePrefs({
+            theme: theme === "light" || theme === "dark" || theme === "system" ? theme as Theme : "system",
+            layoutDensity: density === "compact" || density === "comfortable" ? density as LayoutDensity : "comfortable",
+            sidebarCollapsed: fd.get("sidebar") === "on",
+            showWelcomeCard: fd.get("welcome") === "on",
+          });
+        }}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted-light)]">Tema de color</p>
+              <select name="theme" defaultValue={prefs.theme} className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]">
+                <option value="light">Claro</option>
+                <option value="dark">Oscuro</option>
+                <option value="system">Sistema</option>
+              </select>
+              <p className="mt-1 text-[10px] text-[var(--muted-light)]">Elige entre modo claro, oscuro o seguir la configuración de tu sistema.</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-[var(--muted-light)]">Densidad de diseño</p>
+              <select name="density" defaultValue={prefs.layoutDensity} className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]">
+                <option value="comfortable">Cómodo</option>
+                <option value="compact">Compacto</option>
+              </select>
+              <p className="mt-1 text-[10px] text-[var(--muted-light)]">Controla el espacio entre elementos en pantallas y formularios.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" name="sidebar" value="on" defaultChecked={prefs.sidebarCollapsed} className="rounded border-[var(--line)] bg-[var(--surface)] text-[var(--accent)] focus:ring-[var(--accent)]" />
+              <span className="text-sm text-[var(--foreground-secondary)]">Iniciar con el menú lateral contraído</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" name="welcome" value="on" defaultChecked={prefs.showWelcomeCard} className="rounded border-[var(--line)] bg-[var(--surface)] text-[var(--accent)] focus:ring-[var(--accent)]" />
+              <span className="text-sm text-[var(--foreground-secondary)]">Mostrar tarjeta de bienvenida en el panel</span>
+            </label>
+          </div>
+          <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white">Guardar preferencias</button>
+        </form>
+      </section>
     </div>
   </div>;
 }
 
 function EmptyWorkspace() {
-  return <div className="mx-auto max-w-xl rounded-2xl border border-[#e5ebe7] bg-white p-8">
-    <div className="text-center"><span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#edf5f0] text-[#397552]"><Store size={22}/></span><h1 className="mt-4 text-xl font-semibold text-[#304638]">Creá tu primer espacio</h1><p className="mt-2 text-sm leading-6 text-[#839087]">Cada espacio representa un negocio y mantiene su propia configuración. Completá estos datos para empezar.</p></div>
+  return <div className="mx-auto max-w-xl rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-8">
+    <div className="text-center"><span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[var(--accent-light)] text-[var(--accent)]"><Store size={22}/></span><h1 className="mt-4 text-xl font-semibold text-[var(--foreground-secondary)]">Creá tu primer espacio</h1><p className="mt-2 text-sm leading-6 text-[var(--muted-light)]">Cada espacio representa un negocio y mantiene su propia configuración. Completá estos datos para empezar.</p></div>
     <form action={createBusiness} className="mt-7 space-y-4">
-      <label className="block text-xs font-semibold text-[#52645a]">Nombre del negocio<input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi comercio" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"/></label>
-      <label className="block text-xs font-semibold text-[#52645a]">Rubro<select name="industry" required defaultValue="" className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal"><option value="" disabled>Seleccioná un rubro</option>{Object.entries(industries).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
-      <button className="w-full rounded-xl bg-[#176b4f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#125b42]">Crear mi espacio</button>
+      <label className="block text-xs font-semibold text-[var(--muted-light)]">Nombre del negocio<input name="name" required minLength={2} maxLength={120} placeholder="Ej. Mi comercio" className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label>
+      <label className="block text-xs font-semibold text-[var(--muted-light)]">Rubro<select name="industry" required defaultValue="" className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal"><option value="" disabled>Seleccioná un rubro</option>{Object.entries(industries).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
+      <button className="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">Crear mi espacio</button>
     </form>
   </div>;
 }
 
 function EmptyModules() {
-  return <div className="rounded-2xl border border-dashed border-[#dce6df] bg-white p-10 text-center"><Package size={25} className="mx-auto text-[#8da596]"/><p className="mt-3 text-sm font-semibold text-[#52645a]">No hay herramientas activas en esta sección</p><p className="mt-1 text-xs text-[#89958e]">Podés habilitarlas desde Configuración.</p><Link href="/app?section=settings" className="mt-4 inline-flex text-xs font-semibold text-[#397552] hover:underline">Ir a configuración <ArrowRight size={13}/></Link></div>;
+  return <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--surface)] p-10 text-center"><Package size={25} className="mx-auto text-[var(--muted-light)]"/><p className="mt-3 text-sm font-semibold text-[var(--muted-light)]">No hay herramientas activas en esta sección</p><p className="mt-1 text-xs text-[var(--muted-light)]">Podés habilitarlas desde Configuración.</p><Link href="/app?section=settings" className="mt-4 inline-flex text-xs font-semibold text-[var(--accent)] hover:underline">Ir a configuración <ArrowRight size={13}/></Link></div>;
 }

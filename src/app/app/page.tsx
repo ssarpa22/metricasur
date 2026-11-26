@@ -83,7 +83,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   const parsedIndustry = industrySchema.safeParse(activeBusiness?.industry);
   const activeIndustry: Industry = parsedIndustry.success ? parsedIndustry.data : "other";
   const fullName = typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "";
-  const firstName = fullName.trim().split(/\\s+/)[0] || user.email?.split("@")[0] || "ahí";
+  const firstName = fullName.trim().split(/\s+/)[0] || user.email?.split("@")[0] || "ahí";
 
   return <AppShell
     firstName={firstName}

@@ -1,4 +1,22 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "./app/theme-provider";
+
 export const metadata: Metadata = { title: "MétricaSur — Tu negocio, más simple", description: "La plataforma de gestión que se adapta a tu negocio. Organizá clientes, tareas y operaciones desde un solo lugar." };
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { return <html lang="es-AR"><body>{children}</body></html>; }
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="es-AR" suppressHydrationWarning>
+      <body>
+        <template
+          id="theme-init"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var saved=localStorage.getItem('metricasur_theme');var root=document.documentElement;if(saved==='light'||saved==='dark'){root.setAttribute('data-theme',saved)}else if(saved==='system'||!saved){root.setAttribute('data-theme',window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}}catch(e){}})();`,
+          }}
+        ></template>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
+    </html>
+  );
+}

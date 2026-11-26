@@ -61,9 +61,9 @@ const relationshipLabels: Record<string, string> = {
 };
 
 const relationshipStyles: Record<string, string> = {
-  prospect: "bg-amber-50 text-amber-700",
-  active: "bg-emerald-50 text-emerald-700",
-  inactive: "bg-slate-100 text-slate-600",
+  prospect: "bg-[var(--warning-light)] text-[var(--warning)]",
+  active: "bg-[var(--success-light)] text-[var(--success)]",
+  inactive: "bg-[var(--line-light)] text-[var(--muted-light)]",
 };
 
 function metadataOf(record: CustomerRecord): CustomerMetadata {
@@ -94,7 +94,7 @@ function Field({
   maxLength?: number;
 }) {
   return (
-    <label className="text-xs font-semibold text-[#52645a]">
+    <label className="text-xs font-semibold text-[var(--muted-light)]">
       {label}
       <input
         name={name}
@@ -102,7 +102,7 @@ function Field({
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
         maxLength={maxLength}
-        className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]"
+        className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"
       />
     </label>
   );
@@ -120,26 +120,26 @@ function CustomerFields({ metadata }: { metadata: CustomerMetadata }) {
       <Field label="Ciudad" name="city" defaultValue={metadata.city} maxLength={100} />
       <Field label="Provincia" name="province" defaultValue={metadata.province} maxLength={100} />
 
-      <label className="text-xs font-semibold text-[#52645a]">
+      <label className="text-xs font-semibold text-[var(--muted-light)]">
         Tipo de cliente
-        <select name="customerType" defaultValue={metadata.customerType} className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal">
+        <select name="customerType" defaultValue={metadata.customerType} className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal">
           <option value="person">Persona</option>
           <option value="company">Empresa</option>
         </select>
       </label>
 
-      <label className="text-xs font-semibold text-[#52645a]">
+      <label className="text-xs font-semibold text-[var(--muted-light)]">
         Estado comercial
-        <select name="relationshipStatus" defaultValue={metadata.relationshipStatus} className="mt-1.5 w-full rounded-xl border border-[#dce5e0] bg-white px-3 py-2.5 text-sm font-normal">
+        <select name="relationshipStatus" defaultValue={metadata.relationshipStatus} className="mt-1.5 w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm font-normal">
           <option value="prospect">Prospecto</option>
           <option value="active">Activo</option>
           <option value="inactive">Inactivo</option>
         </select>
       </label>
 
-      <label className="text-xs font-semibold text-[#52645a] sm:col-span-2">
+      <label className="text-xs font-semibold text-[var(--muted-light)] sm:col-span-2">
         Notas internas
-        <textarea name="customerNotes" defaultValue={metadata.notes} maxLength={2000} rows={3} placeholder="Información importante sobre este cliente..." className="mt-1.5 w-full rounded-xl border border-[#dce5e0] px-3 py-2.5 text-sm font-normal outline-none focus:border-[#397552]" />
+        <textarea name="customerNotes" defaultValue={metadata.notes} maxLength={2000} rows={3} placeholder="Información importante sobre este cliente..." className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]" />
       </label>
     </>
   );
@@ -225,38 +225,38 @@ export function CustomersWorkspace({ businessId, name, records, canExport = fals
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[#43815f]">Gestión comercial</p>
-          <h1 className="mt-2 text-2xl font-semibold text-[#263b30]">{name}</h1>
-          <p className="mt-1 text-sm text-[#7d8a82]">Administrá tus clientes, contactos y relaciones comerciales.</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">Gestión comercial</p>
+          <h1 className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">{name}</h1>
+          <p className="mt-1 text-sm text-[var(--muted-light)]">Administrá tus clientes, contactos y relaciones comerciales.</p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#176b4f] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#105c45]">
+        <button onClick={() => setShowForm(!showForm)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">
           <Plus size={17} /> {showForm ? "Cerrar formulario" : "Nuevo cliente"}
         </button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#e5ebe7] bg-white p-4">
-          <p className="text-xs text-[#89958e]">Total de clientes</p>
-          <p className="mt-2 text-2xl font-semibold text-[#2d4235]">{records.length}</p>
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <p className="text-xs text-[var(--muted-light)]">Total de clientes</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">{records.length}</p>
         </div>
-        <div className="rounded-xl border border-[#e5ebe7] bg-white p-4">
-          <p className="text-xs text-[#89958e]">Clientes activos</p>
-          <p className="mt-2 text-2xl font-semibold text-[#2d4235]">{active}</p>
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <p className="text-xs text-[var(--muted-light)]">Clientes activos</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">{active}</p>
         </div>
-        <div className="rounded-xl border border-[#e5ebe7] bg-white p-4">
-          <p className="text-xs text-[#89958e]">Prospectos</p>
-          <p className="mt-2 text-2xl font-semibold text-[#2d4235]">{prospects}</p>
+        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+          <p className="text-xs text-[var(--muted-light)]">Prospectos</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--foreground-secondary)]">{prospects}</p>
         </div>
       </div>
 
       {showForm && (
-        <section className="rounded-2xl border border-[#cfe0d4] bg-white p-5 sm:p-7">
+        <section className="rounded-2xl border border-[var(--success-light)] bg-[var(--surface)] p-5 sm:p-7">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold text-[#304638]">Nuevo cliente</h2>
-              <p className="mt-1 text-xs text-[#89958e]">Completá los datos de contacto y comerciales.</p>
+              <h2 className="text-base font-semibold text-[var(--foreground-secondary)]">Nuevo cliente</h2>
+              <p className="mt-1 text-xs text-[var(--muted-light)]">Completá los datos de contacto y comerciales.</p>
             </div>
-            <button onClick={() => setShowForm(false)} aria-label="Cerrar" className="rounded-lg p-2 text-[#7c8981] hover:bg-[#f3f6f4]"><X size={17} /></button>
+            <button onClick={() => setShowForm(false)} aria-label="Cerrar" className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)]"><X size={17} /></button>
           </div>
 
           <form action={createBusinessRecord} className="grid gap-4 sm:grid-cols-2">
@@ -266,53 +266,53 @@ export function CustomersWorkspace({ businessId, name, records, canExport = fals
             </div>
             <CustomerFields metadata={emptyMetadata} />
             <div className="flex justify-end gap-2 sm:col-span-2">
-              <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-[#dce5e0] px-4 py-2.5 text-sm font-semibold text-[#52645a]">Cancelar</button>
-              <button className="rounded-xl bg-[#176b4f] px-5 py-2.5 text-sm font-semibold text-white">Guardar cliente</button>
+              <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-sm font-semibold text-[var(--muted-light)]">Cancelar</button>
+              <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white">Guardar cliente</button>
             </div>
           </form>
         </section>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-[#e5ebe7] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[#edf0ee] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)]">
+        <div className="flex flex-col gap-3 border-b border-[var(--line-light)] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-[#304638]">Clientes ({filtered.length})</h2>
-            <p className="mt-1 text-xs text-[#89958e]">Buscá, filtrá, editá y exportá tu cartera comercial.</p>
+            <h2 className="text-sm font-semibold text-[var(--foreground-secondary)]">Clientes ({filtered.length})</h2>
+            <p className="mt-1 text-xs text-[var(--muted-light)]">Buscá, filtrá, editá y exportá tu cartera comercial.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#89958e]" />
-              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar cliente..." className="w-full rounded-xl border border-[#e5ebe7] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#397552] sm:w-52" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-light)]" />
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar cliente..." className="w-full rounded-xl border border-[var(--line-light)] py-2 pl-9 pr-3 text-sm outline-none focus:border-[var(--accent)] sm:w-52" />
             </label>
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filtrar por estado comercial" className="rounded-xl border border-[#e5ebe7] bg-white px-3 py-2 text-xs text-[#52645a]">
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} aria-label="Filtrar por estado comercial" className="rounded-xl border border-[var(--line-light)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--muted-light)]">
               <option value="all">Todos los estados</option>
               <option value="prospect">Prospectos</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
             </select>
-            {canExport ? <button type="button" onClick={exportCsv} disabled={!filtered.length} className="rounded-xl border border-[#dce5e0] px-3 py-2 text-xs font-semibold text-[#52645a] disabled:opacity-40">Exportar CSV</button> : <span className="rounded-xl border border-[#263445] px-3 py-2 text-xs text-[#64748B]">Exportación: Pro</span>}
+            {canExport ? <button type="button" onClick={exportCsv} disabled={!filtered.length} className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs font-semibold text-[var(--muted-light)] disabled:opacity-40">Exportar CSV</button> : <span className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs text-[var(--muted-light)]">Exportación: Pro</span>}
           </div>
         </div>
 
         {filtered.length ? (
-          <div className="divide-y divide-[#edf0ee]">
+          <div className="divide-y divide-[var(--line-light)]">
             {filtered.map(({ record, metadata }) => (
               <article key={record.id} className="p-4 sm:px-5">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-[#354a3b]">{record.title}</h3>
+                      <h3 className="text-sm font-semibold text-[var(--foreground-secondary)]">{record.title}</h3>
                       <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${relationshipStyles[metadata.relationshipStatus] ?? relationshipStyles.prospect}`}>
                         {relationshipLabels[metadata.relationshipStatus] ?? "Prospecto"}
                       </span>
-                      <span className="rounded-full bg-[#f3f6f4] px-2 py-1 text-[10px] text-[#718078]">
+                      <span className="rounded-full bg-[var(--line-light)] px-2 py-1 text-[10px] text-[var(--muted-light)]">
                         {metadata.customerType === "company" ? "Empresa" : "Persona"}
                       </span>
                     </div>
 
-                    {metadata.company && <p className="mt-1 text-xs text-[#718078]"><Building2 size={12} className="mr-1 inline" />{metadata.company}</p>}
+                    {metadata.company && <p className="mt-1 text-xs text-[var(--muted-light)]"><Building2 size={12} className="mr-1 inline" />{metadata.company}</p>}
 
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#718078]">
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--muted-light)]">
                       {metadata.email && <span><Mail size={12} className="mr-1 inline" />{metadata.email}</span>}
                       {metadata.phone && <span><Phone size={12} className="mr-1 inline" />{metadata.phone}</span>}
                       {metadata.whatsapp && <span>WhatsApp: {metadata.whatsapp}</span>}
@@ -320,17 +320,17 @@ export function CustomersWorkspace({ businessId, name, records, canExport = fals
                       {(metadata.city || metadata.province) && <span><MapPin size={12} className="mr-1 inline" />{[metadata.city, metadata.province].filter(Boolean).join(", ")}</span>}
                     </div>
 
-                    {metadata.notes && <p className="mt-2 line-clamp-2 text-xs text-[#89958e]">{metadata.notes}</p>}
+                    {metadata.notes && <p className="mt-2 line-clamp-2 text-xs text-[var(--muted-light)]">{metadata.notes}</p>}
 
                     <details className="mt-3">
-                      <summary className="w-fit cursor-pointer text-[11px] font-semibold text-[#397552] hover:underline">Editar ficha</summary>
-                      <form action={updateBusinessRecord} className="mt-3 grid gap-3 rounded-xl bg-[#f8faf8] p-3 sm:grid-cols-2">
+                      <summary className="w-fit cursor-pointer text-[11px] font-semibold text-[var(--accent)] hover:underline">Editar ficha</summary>
+                      <form action={updateBusinessRecord} className="mt-3 grid gap-3 rounded-xl bg-[var(--surface-elevated)] p-3 sm:grid-cols-2">
                         <HiddenFields businessId={businessId} recordId={record.id} />
                         <div className="sm:col-span-2">
                           <Field label="Nombre y apellido / Razón social *" name="title" defaultValue={record.title} maxLength={160} />
                         </div>
                         <CustomerFields metadata={metadata} />
-                        <button className="rounded-lg bg-[#176b4f] px-3 py-2 text-xs font-semibold text-white sm:col-span-2">Guardar cambios</button>
+                        <button className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white sm:col-span-2">Guardar cambios</button>
                       </form>
                     </details>
                   </div>
@@ -341,7 +341,7 @@ export function CustomersWorkspace({ businessId, name, records, canExport = fals
                     <input type="hidden" name="businessId" value={businessId} />
                     <input type="hidden" name="moduleSlug" value="customers" />
                     <input type="hidden" name="recordId" value={record.id} />
-                    <button aria-label={`Eliminar ${record.title}`} title="Eliminar cliente" className="rounded-lg p-2 text-[#a0aaa3] hover:bg-red-50 hover:text-red-600"><Trash2 size={15} /></button>
+                    <button aria-label={`Eliminar ${record.title}`} title="Eliminar cliente" className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--error-light)]/50 hover:text-[var(--error)]"><Trash2 size={15} /></button>
                   </form>
                 </div>
               </article>
@@ -349,10 +349,10 @@ export function CustomersWorkspace({ businessId, name, records, canExport = fals
           </div>
         ) : (
           <div className="px-5 py-14 text-center">
-            <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[#f0f5f1] text-[#7e9b88]"><UserRound size={20} /></span>
-            <p className="mt-3 text-sm font-semibold text-[#46594d]">{search || statusFilter !== "all" ? "No encontramos clientes" : "Todavía no hay clientes"}</p>
-            <p className="mt-1 text-xs text-[#89958e]">{search || statusFilter !== "all" ? "Probá modificando la búsqueda o el filtro." : "Creá tu primera ficha para empezar a gestionar tu cartera."}</p>
-            {!search && statusFilter === "all" && <button onClick={() => setShowForm(true)} className="mt-4 rounded-xl bg-[#176b4f] px-4 py-2 text-xs font-semibold text-white">Crear primer cliente</button>}
+            <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-[var(--line-light)] text-[var(--muted-light)]"><UserRound size={20} /></span>
+            <p className="mt-3 text-sm font-semibold text-[var(--foreground-secondary)]">{search || statusFilter !== "all" ? "No encontramos clientes" : "Todavía no hay clientes"}</p>
+            <p className="mt-1 text-xs text-[var(--muted-light)]">{search || statusFilter !== "all" ? "Probá modificando la búsqueda o el filtro." : "Creá tu primera ficha para empezar a gestionar tu cartera."}</p>
+            {!search && statusFilter === "all" && <button onClick={() => setShowForm(true)} className="mt-4 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white">Crear primer cliente</button>}
           </div>
         )}
       </section>
