@@ -27,7 +27,7 @@ const defaultWidgets: DashboardWidget[] = [
 ];
 
 const defaultPreferences: UserPreferences = {
-  theme: "system",
+  theme: "dark",
   layoutDensity: "comfortable",
   sidebarCollapsed: false,
   dashboardWidgets: defaultWidgets,
