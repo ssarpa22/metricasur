@@ -123,7 +123,7 @@ function UserMenu({ firstName, fullName, email, planName, placement, collapsed =
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{firstName.slice(0, 1).toUpperCase()}</span>
         {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[var(--foreground-secondary)]">{fullName || firstName}</span><span className="block truncate text-[11px] text-[var(--muted-light)]">{email}</span></span>}
-        {!collapsed && <ChevronDown size={15} className={`shrink-0 text-[var(--muted-light)] transition ${open ? "rotate-180" : ""}`}/>
+        {!collapsed && <ChevronDown size={15} className={`shrink-0 text-[var(--muted-light)] transition ${open ? "rotate-180" : ""}`}/>}
       </button>
       {open && (
         <div role="menu" aria-label="Menú de usuario" className={`absolute z-[90] w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-2xl ${menuPosition}`}>
