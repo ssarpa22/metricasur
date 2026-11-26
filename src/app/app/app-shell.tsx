@@ -17,7 +17,8 @@ import {
 } from "./actions";
 import { DeleteBusinessForm } from "./delete-business-form";
 import { ModuleWorkspace } from "./module-workspace";
-import { ThemeSelector } from "./theme-toggle";
+import { ThemeToggle } from "./theme-toggle";
+import { useTheme } from "./theme-provider";
 import { Dashboard, useDashboardPrefs } from "./dashboard-widgets";
 import type { LayoutDensity, Theme } from "@/lib/user-preferences";
 
@@ -168,7 +169,7 @@ export function AppShell(props: Props) {
         <div className={`flex items-center gap-3 rounded-xl p-2 ${collapsed ? "justify-center" : ""}`}>
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{props.firstName.slice(0,1).toUpperCase()}</span>
           {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[var(--foreground-secondary)]">{props.firstName}</span><span className="block truncate text-[11px] text-[var(--muted-light)]">{props.email}</span></span>}
-          <ThemeSelector />
+          <ThemeToggle />
           <form action={signOut}><button aria-label="Cerrar sesión" className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)]"><LogOut size={16}/></button></form>
         </div>
       </div>
@@ -340,6 +341,8 @@ function ModuleRow({ slug, on, isManager, activeBusiness }: { slug: string; on: 
 
 function SettingsView(props: Props & { industry: (typeof industries)[Industry]; isManager: boolean }) {
   const { prefs, setPrefs: updatePrefs } = useDashboardPrefs();
+  const { setTheme } = useTheme();
+  const [saved, setSaved] = useState(false);
   return <div className="space-y-6"><div><h1 className="text-2xl font-semibold text-[var(--foreground-secondary)]">Configuración</h1><p className="mt-2 text-sm text-[var(--muted-light)]">Todo lo importante de tu cuenta y tu negocio, en un solo lugar.</p></div>
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Store size={18} className="text-[var(--accent)]"/> Tu espacio de trabajo</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Nombre y rubro del negocio activo.</p>{props.activeBusiness && <div className="mt-5 rounded-xl bg-[var(--surface-elevated)] p-4"><p className="text-sm font-semibold text-[var(--foreground-secondary)]">{props.activeBusiness.name}</p><p className="mt-1 text-xs text-[var(--muted-light)]">{props.industry.label} · {props.activeRole ?? "miembro"}</p></div>}<div className="mt-5"><h3 className="text-sm font-semibold text-[var(--foreground-secondary)]">Tus espacios</h3><div className="mt-2 space-y-2">{props.businesses.map((business) => <div key={business.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--line)] p-3"><span className="min-w-0 truncate text-sm text-[var(--muted-light)]">{business.name}</span>{business.id === props.activeBusiness?.id ? <span className="shrink-0 text-[10px] font-semibold text-[var(--accent)]">Activo</span> : <form action={switchBusiness}><input type="hidden" name="businessId" value={business.id}/><button className="text-xs font-semibold text-[var(--accent)] hover:underline">Cambiar</button></form>}</div>)}</div></div>
@@ -353,14 +356,17 @@ function SettingsView(props: Props & { industry: (typeof industries)[Industry]; 
         <form className="mt-5 space-y-5" onSubmit={(e) => {
           e.preventDefault();
           const fd = new FormData(e.currentTarget as HTMLFormElement);
-          const theme = fd.get("theme");
+          const themeValue = fd.get("theme");
           const density = fd.get("density");
+          const selectedTheme: Theme = themeValue === "light" || themeValue === "dark" || themeValue === "system" ? themeValue : "system";
           updatePrefs({
-            theme: theme === "light" || theme === "dark" || theme === "system" ? theme as Theme : "system",
+            theme: selectedTheme,
             layoutDensity: density === "compact" || density === "comfortable" ? density as LayoutDensity : "comfortable",
             sidebarCollapsed: fd.get("sidebar") === "on",
             showWelcomeCard: fd.get("welcome") === "on",
           });
+          setTheme(selectedTheme);
+          setSaved(true);
         }}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -391,7 +397,10 @@ function SettingsView(props: Props & { industry: (typeof industries)[Industry]; 
               <span className="text-sm text-[var(--foreground-secondary)]">Mostrar tarjeta de bienvenida en el panel</span>
             </label>
           </div>
-          <button className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white">Guardar preferencias</button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="submit" className="rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)]">Guardar preferencias</button>
+            {saved && <p role="status" className="text-xs font-medium text-[var(--success)]">Preferencias guardadas y aplicadas.</p>}
+          </div>
         </form>
       </section>
     </div>
