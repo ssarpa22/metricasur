@@ -13,14 +13,25 @@ export type SubscriptionSnapshot = Omit<SubscriptionRow, "plan"> & {
   plan: SubscriptionPlan;
 };
 
-export async function getBusinessSubscription(
+async function getOwnedBusinessIds(
   supabase: SupabaseClient,
-  businessId: string,
+  userId: string,
+): Promise<{ ids: string[]; error: unknown }> {
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("created_by", userId);
+  return { ids: data?.map((business) => business.id) ?? [], error };
+}
+
+export async function getAccountSubscription(
+  supabase: SupabaseClient,
+  userId: string,
 ): Promise<{ data: SubscriptionSnapshot | null; error: unknown }> {
   const { data, error } = await supabase
-    .from("business_subscriptions")
+    .from("account_subscriptions")
     .select("plan, status, started_at, renews_at, free_plan_grandfathered")
-    .eq("business_id", businessId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error || !data) return { data: null, error };
@@ -29,14 +40,18 @@ export async function getBusinessSubscription(
 
 export async function getMonthlyRecordUsage(
   supabase: SupabaseClient,
-  businessId: string,
+  userId: string,
   now = new Date(),
 ): Promise<{ count: number; error: unknown }> {
+  const { ids, error: businessError } = await getOwnedBusinessIds(supabase, userId);
+  if (businessError) return { count: 0, error: businessError };
+  if (!ids.length) return { count: 0, error: null };
+
   const { start, end } = getUtcMonthBounds(now);
   const { count, error } = await supabase
     .from("business_records")
     .select("id", { count: "exact", head: true })
-    .eq("business_id", businessId)
+    .in("business_id", ids)
     .gte("created_at", start.toISOString())
     .lt("created_at", end.toISOString());
 
@@ -54,31 +69,26 @@ export async function getUserPlanContext(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ plan: SubscriptionPlan; businessCount: number; error: unknown }> {
-  const { data: memberships, error: membershipError } = await supabase
-    .from("business_memberships")
-    .select("business_id, role")
-    .eq("user_id", userId);
+  const [{ ids, error: businessError }, subscription] = await Promise.all([
+    getOwnedBusinessIds(supabase, userId),
+    getAccountSubscription(supabase, userId),
+  ]);
 
-  if (membershipError) return { plan: getSubscriptionPlan("free"), businessCount: 0, error: membershipError };
-
-  const businessIds = memberships
-    ?.filter((membership) => membership.role === "owner" || membership.role === "admin")
-    .map((membership) => membership.business_id) ?? [];
-  if (!businessIds.length) return { plan: getSubscriptionPlan("free"), businessCount: 0, error: null };
-
-  const { data: subscriptions, error: subscriptionError } = await supabase
-    .from("business_subscriptions")
-    .select("plan")
-    .in("business_id", businessIds);
-
-  if (subscriptionError) return { plan: getSubscriptionPlan("free"), businessCount: businessIds.length, error: subscriptionError };
-  if ((subscriptions?.length ?? 0) !== businessIds.length) {
-    return { plan: getSubscriptionPlan("free"), businessCount: businessIds.length, error: new Error("Missing subscription for a managed business") };
+  if (businessError) {
+    return { plan: getSubscriptionPlan("free"), businessCount: 0, error: businessError };
+  }
+  if (subscription.error) {
+    return { plan: getSubscriptionPlan("free"), businessCount: ids.length, error: subscription.error };
+  }
+  if (!subscription.data) {
+    return {
+      plan: getSubscriptionPlan("free"),
+      businessCount: ids.length,
+      error: new Error("Missing account subscription"),
+    };
   }
 
-  const plans = subscriptions?.map((subscription) => getSubscriptionPlan(subscription.plan)) ?? [];
-  const plan = plans.sort((a, b) => planRank(b.id) - planRank(a.id))[0] ?? getSubscriptionPlan("free");
-  return { plan, businessCount: businessIds.length, error: null };
+  return { plan: subscription.data.plan, businessCount: ids.length, error: null };
 }
 
 export function planRank(plan: PlanId): number {
