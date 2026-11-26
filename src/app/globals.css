@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 @layer base {
-  :root,
   [data-theme="light"] {
     --background: #ffffff;
     --background-secondary: #f6f8f7;
@@ -31,6 +30,7 @@
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
+  :root,
   [data-theme="dark"] {
     --background: #0b0f14;
     --background-secondary: #101720;
