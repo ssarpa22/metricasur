@@ -86,8 +86,23 @@ describe("loadPreferences", () => {
   it("returns defaults on corrupt stored data", () => {
     mockStorage.setItem(PREFERENCES_KEY, "not-valid-json");
     const prefs = loadPreferences();
-    expect(prefs.theme).toBe("system");
+    expect(prefs.theme).toBe("dark");
     expect(prefs.dashboardWidgets.length).toBe(4);
+  });
+
+  it("falls back to safe defaults for invalid stored preference values", () => {
+    mockStorage.setItem(PREFERENCES_KEY, JSON.stringify({
+      theme: "neon",
+      layoutDensity: "ultra-compact",
+      sidebarCollapsed: "yes",
+      showWelcomeCard: 1,
+    }));
+
+    const prefs = loadPreferences();
+    expect(prefs.theme).toBe("dark");
+    expect(prefs.layoutDensity).toBe("comfortable");
+    expect(prefs.sidebarCollapsed).toBe(false);
+    expect(prefs.showWelcomeCard).toBe(true);
   });
 });
 
