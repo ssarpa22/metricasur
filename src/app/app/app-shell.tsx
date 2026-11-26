@@ -121,7 +121,7 @@ export function AppShell(props: Props) {
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="flex h-[76px] items-center justify-between border-b border-[var(--line-light)] px-5">
-        <Link href="/app" className={`flex items-center gap-3 overflow-hidden ${collapsed ? "lg:justify-center" : ""}`}>
+        <Link href="/app" aria-label="MétricaSur, ir al inicio" title={collapsed ? "MétricaSur, ir al inicio" : undefined} className={`flex items-center gap-3 overflow-hidden ${collapsed ? "lg:justify-center" : ""}`}>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white"><BarChart3 size={21}/></span>
           {!collapsed && <span className="whitespace-nowrap text-xl font-bold tracking-tight text-[var(--foreground-secondary)]">métrica<span className="text-[var(--accent)]">sur</span></span>}
         </Link>
@@ -129,7 +129,7 @@ export function AppShell(props: Props) {
       </div>
 
       <div className="border-b border-[var(--line-light)] p-3">
-        <button onClick={() => setBusinessExpanded(!businessExpanded)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:bg-[var(--surface-hover)]">
+        <button onClick={() => setBusinessExpanded(!businessExpanded)} aria-label={collapsed ? `Cambiar espacio de trabajo. Actual: ${active?.name ?? "Sin negocio"}` : undefined} title={collapsed ? `Espacio actual: ${active?.name ?? "Sin negocio"}` : undefined} className="flex w-full items-center gap-3 rounded-xl border border-[var(--line)] p-3 text-left hover:bg-[var(--surface-hover)]">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-light)] text-[var(--accent)]"><Store size={18}/></span>
           {!collapsed && <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-semibold text-[var(--foreground-secondary)]">{active?.name ?? "Sin negocio"}</span>
