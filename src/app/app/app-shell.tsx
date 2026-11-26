@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity, AlertTriangle, ArrowRight, ArrowUpRight, BarChart3, Bell, BriefcaseBusiness,
   CalendarDays, Check, CheckSquare, ChevronDown, ChevronLeft, ChevronRight, ClipboardList,
-  CreditCard, LayoutDashboard, LogOut, Menu, Monitor, Package, Plus, Settings2, ShoppingBag,
-  Sparkles, Store, Users, Wallet, X, Clock,
+  CreditCard, LayoutDashboard, LogOut, Mail, Menu, Monitor, Package, Plus, Settings2, ShoppingBag,
+  Sparkles, Store, Users, Wallet, X, Clock, CircleHelp, FileText, UserRound,
 } from "lucide-react";
 import { industries, type Industry } from "@/lib/industries";
 import { moduleCatalog } from "@/lib/modules";
@@ -78,6 +78,80 @@ const moduleIcons: Record<string, typeof ShoppingBag> = {
   waste_tracking: Activity, menu_costing: Wallet, projects: BriefcaseBusiness,
   time_tracking: Activity, production: Store, work_orders: ClipboardList, tasks: Check,
 };
+
+function UserMenu({ firstName, fullName, email, planName, placement, collapsed = false }: {
+  firstName: string;
+  fullName: string;
+  email: string;
+  planName: string;
+  placement: "sidebar" | "header";
+  collapsed?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) setOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const menuPosition = placement === "sidebar"
+    ? "bottom-full left-0 mb-2"
+    : "right-0 top-full mt-2";
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Abrir menú de usuario"
+        title="Menú de usuario"
+        className={`flex items-center gap-3 rounded-xl p-2 text-left transition hover:bg-[var(--surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${collapsed ? "justify-center" : "w-full"}`}
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{firstName.slice(0, 1).toUpperCase()}</span>
+        {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[var(--foreground-secondary)]">{fullName || firstName}</span><span className="block truncate text-[11px] text-[var(--muted-light)]">{email}</span></span>}
+        {!collapsed && <ChevronDown size={15} className={`shrink-0 text-[var(--muted-light)] transition ${open ? "rotate-180" : ""}`}/>
+      </button>
+      {open && (
+        <div role="menu" aria-label="Menú de usuario" className={`absolute z-[90] w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-2xl ${menuPosition}`}>
+          <div className="border-b border-[var(--line-light)] px-3 py-3">
+            <p className="truncate text-sm font-semibold text-[var(--foreground-secondary)]">{fullName || firstName}</p>
+            <p className="truncate text-xs text-[var(--muted-light)]">{email}</p>
+            <span className="mt-2 inline-flex rounded-full bg-[var(--accent-light)] px-2.5 py-1 text-[10px] font-semibold text-[var(--accent)]">Plan {planName}</span>
+          </div>
+          <div className="py-1">
+            <Link role="menuitem" href="/app?section=settings#profile" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"><UserRound size={16}/> Perfil</Link>
+            <Link role="menuitem" href="/app?section=subscription" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"><CreditCard size={16}/> Suscripción</Link>
+            <a role="menuitem" href="mailto:hola@metricasur.com?subject=Ayuda%20y%20soporte" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"><CircleHelp size={16}/> Ayuda / soporte</a>
+            <div role="menuitem" aria-disabled="true" title="Esta sección todavía no está publicada" className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--muted-light)]"><FileText size={16}/> Términos y condiciones <span className="ml-auto text-[10px]">En preparación</span></div>
+            <a role="menuitem" href="mailto:hola@metricasur.com?subject=Contacto%20M%C3%A9tricaSur" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"><Mail size={16}/> Contacto</a>
+            <Link role="menuitem" href="/app?section=settings" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-[var(--foreground-secondary)] hover:bg-[var(--surface-hover)]"><Settings2 size={16}/> Configuración</Link>
+          </div>
+          <div className="flex items-center justify-between border-t border-[var(--line-light)] px-3 py-2">
+            <span className="text-xs text-[var(--muted-light)]">Apariencia</span>
+            <ThemeToggle />
+          </div>
+          <form action={signOut} className="border-t border-[var(--line-light)] pt-1">
+            <button role="menuitem" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--error)] hover:bg-[var(--error-light)]"><LogOut size={16}/> Salir</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function NavLink({ id, label, icon: Icon, active, onClick, collapsed = false }: {
   id: string; label: string; icon: typeof LayoutDashboard; active: boolean; onClick?: () => void; collapsed?: boolean;
@@ -176,12 +250,7 @@ export function AppShell(props: Props) {
       </nav>
 
       <div className="border-t border-[var(--line-light)] p-3">
-        <div className={`flex items-center gap-3 rounded-xl p-2 ${collapsed ? "justify-center" : ""}`}>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{props.firstName.slice(0,1).toUpperCase()}</span>
-          {!collapsed && <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-[var(--foreground-secondary)]">{props.firstName}</span><span className="block truncate text-[11px] text-[var(--muted-light)]">{props.email}</span></span>}
-          <ThemeToggle />
-          <form action={signOut}><button aria-label="Cerrar sesión" className="rounded-lg p-2 text-[var(--muted-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent)]"><LogOut size={16}/></button></form>
-        </div>
+        <UserMenu firstName={props.firstName} fullName={props.fullName} email={props.email} planName={props.subscription.plan.name} placement="sidebar" collapsed={collapsed}/>
       </div>
     </div>
   );
@@ -215,7 +284,7 @@ export function AppShell(props: Props) {
             <span className="hidden rounded-full bg-[var(--accent-light)] px-3 py-1.5 text-xs font-medium text-[var(--accent)] sm:inline-flex">{industry.label}</span>
             {overdue.length > 0 && <Link href="/app?section=reports" className="relative rounded-xl p-2.5 text-[var(--error)] hover:bg-[var(--error-light)]" aria-label="Ver registros vencidos" title="Registros vencidos"><AlertTriangle size={18}/><span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-[var(--error)] text-white text-[10px] font-bold">{overdue.length}</span></Link>}
             <Link href="/app?section=reports" className="rounded-xl p-2.5 text-[var(--muted-light)] hover:bg-[var(--surface-hover)]" aria-label="Ir a informes" title="Informes"><Bell size={18}/></Link>
-            <span className="flex size-9 items-center justify-center rounded-full bg-[var(--accent-light)] text-sm font-bold text-[var(--accent)]">{props.firstName.slice(0,1).toUpperCase()}</span>
+            <UserMenu firstName={props.firstName} fullName={props.fullName} email={props.email} planName={props.subscription.plan.name} placement="header"/>
           </div>
         </header>
 
@@ -362,7 +431,7 @@ function SettingsView(props: Props & { industry: (typeof industries)[Industry]; 
       </section>
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Package size={18} className="text-[var(--accent)]"/> Módulos y herramientas</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Mostrá solo las herramientas que realmente necesitás.</p>{props.moduleSetupMissing && props.isManager && props.activeBusiness && <div className="mt-4 rounded-xl border border-[var(--warning-light)] bg-[var(--warning-light)]/50 p-4"><p className="text-sm font-semibold text-[var(--warning)]">Este espacio todavía no tiene módulos instalados</p><p className="mt-1 text-xs leading-5 text-[var(--warning)]">Podés restaurar las herramientas recomendadas para {props.industry.label.toLowerCase()}. Esto no borra ni modifica registros existentes.</p><form action={restoreRecommendedBusinessModules} className="mt-3"><input type="hidden" name="businessId" value={props.activeBusiness.id}/><button className="rounded-lg bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white">Instalar módulos recomendados</button></form></div>}<div className="mt-5 space-y-3">{moduleGroups.map((group) => <details key={group.title} open className="rounded-xl border border-[var(--line)] p-4"><summary className="cursor-pointer text-sm font-semibold text-[var(--foreground-secondary)]">{group.title}</summary><div className="mt-3 space-y-3">{group.slugs.map((slug) => { const moduleItem = moduleCatalog.find((item) => item.slug === slug); if (!moduleItem) return null; const on = props.enabledModules[slug] ?? false; return <ModuleRow key={slug} slug={slug} on={on} isManager={props.isManager} activeBusiness={props.activeBusiness}/>; })}</div></details>)}</div>
       </section>
-      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Users size={18} className="text-[var(--accent)]"/> Tu perfil</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Información de tu cuenta personal.</p><form action={updateProfile} className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-semibold text-[var(--muted-light)]">Nombre<input name="fullName" defaultValue={props.fullName} required minLength={2} maxLength={80} placeholder="Tu nombre" className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label><div><p className="text-xs font-semibold text-[var(--muted-light)]">Email</p><p className="mt-1.5 rounded-xl bg-[var(--background-secondary)] px-3 py-2.5 text-sm text-[var(--muted-light)]">{props.email}</p></div><button className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-xs font-semibold text-[var(--foreground-secondary)] hover:border-[var(--accent)]">Guardar perfil</button></form></section>
+      <section id="profile" className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Users size={18} className="text-[var(--accent)]"/> Tu perfil</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Información de tu cuenta personal.</p><form action={updateProfile} className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"><label className="text-xs font-semibold text-[var(--muted-light)]">Nombre<input name="fullName" defaultValue={props.fullName} required minLength={2} maxLength={80} placeholder="Tu nombre" className="mt-1.5 w-full rounded-xl border border-[var(--line)] px-3 py-2.5 text-sm font-normal outline-none focus:border-[var(--accent)]"/></label><div><p className="text-xs font-semibold text-[var(--muted-light)]">Email</p><p className="mt-1.5 rounded-xl bg-[var(--background-secondary)] px-3 py-2.5 text-sm text-[var(--muted-light)]">{props.email}</p></div><button className="rounded-xl border border-[var(--line)] px-4 py-2.5 text-xs font-semibold text-[var(--foreground-secondary)] hover:border-[var(--accent)]">Guardar perfil</button></form></section>
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-5 sm:p-7 xl:col-span-2"><h2 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground-secondary)]"><Monitor size={18} className="text-[var(--accent)]"/> Apariencia y preferencias</h2><p className="mt-1 text-xs text-[var(--muted-light)]">Personalizá cómo se ve y se comporta MétricaSur.</p>
         <form className="mt-5 space-y-5" onSubmit={(e) => {
           e.preventDefault();
