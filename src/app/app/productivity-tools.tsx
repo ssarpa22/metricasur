@@ -90,7 +90,7 @@ export function CommandPalette({ modules }: { modules: ModuleItem[] }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 px-3 pt-[12vh] backdrop-blur-sm" onMouseDown={(event) => {
+        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 px-3 pt-[12vh] backdrop-blur-sm" onPointerDown={(event) => {
           if (event.target === event.currentTarget) setOpen(false);
         }}>
           <section role="dialog" aria-modal="true" aria-label="Búsqueda rápida" className="w-full max-w-3xl overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-2xl">
