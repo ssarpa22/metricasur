@@ -14,7 +14,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   const saved = window.localStorage.getItem("metricasur_theme");
   if (saved === "light" || saved === "dark" || saved === "system") return saved;
   return loadPreferences().theme;
