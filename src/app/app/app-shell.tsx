@@ -20,7 +20,7 @@ import { ModuleWorkspace } from "./module-workspace";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 import { Dashboard, useDashboardPrefs } from "./dashboard-widgets";
-import { loadPreferences, type LayoutDensity, type Theme } from "@/lib/user-preferences";
+import type { LayoutDensity, Theme } from "@/lib/user-preferences";
 import { CommandPalette } from "./productivity-tools";
 
 type Business = { id: string; name: string; industry: string; created_at: string };
