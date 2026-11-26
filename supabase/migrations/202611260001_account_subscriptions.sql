@@ -144,7 +144,8 @@ $$;
 revoke all on function public.create_business(text, text) from public, anon;
 grant execute on function public.create_business(text, text) to authenticated;
 
--- The legacy trigger would create an irrelevant per-business subscription on every new workspace.
+-- Retain legacy rows for migration history, but remove client access and stop creating new ones.
+revoke all on public.business_subscriptions from public, anon, authenticated;
 drop trigger if exists businesses_seed_subscription on public.businesses;
 
 -- Enforce monthly record usage across every business owned by the account.
