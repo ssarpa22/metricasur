@@ -298,7 +298,7 @@ export function AppShell(props: Props) {
           {props.notices.dataIssue && <p role="alert" className="mb-5 rounded-xl border border-[var(--warning-light)] bg-[var(--warning-light)]/50 px-4 py-3 text-sm leading-6 text-[var(--warning)]">{props.notices.dataIssue} No vamos a mostrar estas secciones como si estuvieran vacías.</p>}
           {(props.notices.created || props.notices.profile || props.notices.modules || props.notices.deleted || props.notices.saved || props.notices.deletedRecord) && <p role="status" className="mb-5 rounded-xl border border-[var(--success-light)] bg-[var(--success-light)]/50 px-4 py-3 text-sm text-[var(--success)]">{props.notices.created ? "Tu espacio de trabajo está creado." : props.notices.profile ? "Tu perfil se actualizó correctamente." : props.notices.modules ? "La configuración de módulos se actualizó." : props.notices.saved ? "El registro se guardó correctamente." : props.notices.deletedRecord ? "El registro se eliminó." : "El espacio de trabajo se eliminó correctamente."}</p>}
 
-          {!active ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
+          {!active && props.section !== "help" && props.section !== "contact" ? <EmptyWorkspace/> : props.section === "home" || !sectionTitles[props.section] && !moduleCatalog.some((m) => m.slug === props.section) ? (
             <Dashboard firstName={props.firstName} business={active} industry={industry} records={props.allRecords} enabledModulesCount={activeCount}/>
           ) : props.section === "settings" ? (
             <SettingsView {...props} industry={industry} isManager={isManager}/>
