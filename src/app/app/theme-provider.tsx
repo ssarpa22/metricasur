@@ -15,8 +15,12 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "dark";
-  const saved = window.localStorage.getItem("metricasur_theme");
-  if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  try {
+    const saved = window.localStorage.getItem("metricasur_theme");
+    if (saved === "light" || saved === "dark" || saved === "system") return saved;
+  } catch {
+    // Continue with the merged preference defaults when storage is blocked.
+  }
   return loadPreferences().theme;
 }
 

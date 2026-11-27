@@ -12,7 +12,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           id="theme-init"
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var saved=localStorage.getItem('metricasur_theme');var root=document.documentElement;if(saved==='light'||saved==='dark'){root.setAttribute('data-theme',saved)}else if(saved==='system'||!saved){root.setAttribute('data-theme',window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}}catch(e){}})();`,
+            __html: `(function(){try{var saved=null;try{saved=localStorage.getItem('metricasur_theme')}catch(e){}var root=document.documentElement;if(saved==='light'||saved==='dark'){root.setAttribute('data-theme',saved)}else if(saved==='system'){root.setAttribute('data-theme',window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')}else{root.setAttribute('data-theme','dark')}}catch(e){}})();`,
           }}
         ></template>
         <ThemeProvider>{children}</ThemeProvider>
