@@ -1,0 +1,55 @@
+name: E2E browser tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  theme-browser:
+    name: Theme switching in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      METRICASUR_E2E_EMAIL: ${{ secrets.METRICASUR_E2E_EMAIL }}
+      METRICASUR_E2E_PASSWORD: ${{ secrets.METRICASUR_E2E_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run theme browser tests
+        run: npm run test:e2e -- tests/e2e/theme.spec.ts
+
+      - name: Explain skipped authenticated test
+        if: env.METRICASUR_E2E_EMAIL == '' || env.METRICASUR_E2E_PASSWORD == '' || env.NEXT_PUBLIC_SUPABASE_URL == '' || env.NEXT_PUBLIC_SUPABASE_ANON_KEY == ''
+        run: echo "::notice::La prueba visual de CSS se ejecutó. Para probar switch y Configuración con sesión real, agregá los secretos E2E/Supabase del PR."
+
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-theme-results
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
