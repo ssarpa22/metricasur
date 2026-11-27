@@ -7,7 +7,7 @@ describe("TutorialWidget", () => {
   it("shows the first step automatically for accounts without a saved choice", () => {
     const html = ReactDOMServer.renderToString(<TutorialWidget initiallyDismissed={false}/>);
     expect(html).toContain("¡Bienvenido a MétricaSur!");
-    expect(html).toContain("Paso 1 de 6");
+    expect(html.replace(/<!-- -->/g, "")).toContain("Paso 1 de 6");
     expect(html).toContain("Siguiente");
   });
 
