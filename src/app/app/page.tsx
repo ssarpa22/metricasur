@@ -37,7 +37,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   const activeRole = memberships?.find((membership) => membership.business_id === activeBusiness?.id)?.role ?? null;
   const accountOwnerId = activeBusiness?.created_by ?? user.id;
   const selectedModule = moduleSlugSchema.safeParse(params.section);
-  const [overviewResult, installationsResult, recordsResult] = await Promise.all([
+  const [overviewResult, installationsResult, recordsResult, tutorialPreferenceResult] = await Promise.all([
     getAccountSubscriptionOverview(supabase, accountOwnerId),
     activeBusiness
       ? supabase.from("business_modules").select("module_slug, enabled").eq("business_id", activeBusiness.id)
@@ -45,6 +45,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
     activeBusiness
       ? supabase.from("business_records").select("id, module_slug, title, description, status, amount, quantity, due_date, category, reference, metadata, created_at").eq("business_id", activeBusiness.id).order("created_at", { ascending: false }).limit(500)
       : Promise.resolve({ data: [], error: null }),
+    supabase.from("user_tutorial_preferences").select("tutorial_dismissed, tutorial_completed").eq("user_id", user.id).maybeSingle(),
   ]);
   const subscription = overviewResult.data ?? {
     plan: getSubscriptionPlan("free"),
@@ -108,6 +109,7 @@ export default async function AppPage({ searchParams }: AppPageProps) {
       businessCount: subscription.businessCount,
     }}
     moduleSetupMissing={Boolean(activeBusiness && !installationsError && (installations ?? []).length === 0)}
+    tutorialDismissed={Boolean(tutorialPreferenceResult.error || tutorialPreferenceResult.data?.tutorial_dismissed || tutorialPreferenceResult.data?.tutorial_completed)}
     records={records}
     allRecords={allRecords}
     section={params.section ?? "home"}

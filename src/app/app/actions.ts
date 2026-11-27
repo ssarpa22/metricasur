@@ -10,6 +10,37 @@ import { getUserPlanContext } from "@/lib/subscription-server";
 
 const ACTIVE_BUSINESS_COOKIE = "metricasur_active_business";
 
+export async function dismissTutorial(): Promise<{ ok: boolean }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const { error } = await supabase.from("user_tutorial_preferences").upsert(
+    { user_id: user.id, tutorial_dismissed: true },
+    { onConflict: "user_id" },
+  );
+  if (error) {
+    console.error("[MétricaSur] No se pudo guardar la preferencia del tutorial:", error);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+export async function completeTutorial(): Promise<{ ok: boolean }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false };
+  const { error } = await supabase.from("user_tutorial_preferences").upsert(
+    { user_id: user.id, tutorial_completed: true },
+    { onConflict: "user_id" },
+  );
+  if (error) {
+    console.error("[MétricaSur] No se pudo guardar la finalización del tutorial:", error);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+
 function appError(message: string): never {
   redirect(`/app?error=${encodeURIComponent(message)}`);
 }
